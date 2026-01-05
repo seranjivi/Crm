@@ -13,7 +13,8 @@ from typing import Dict, Any, Optional
 
 # Configuration
 # BASE_URL = "https://sightsales.preview.emergentagent.com/api"
-BASE_URL = "http://localhost:8000/api"
+# BASE_URL = "http://localhost:8000/api"
+BASE_URL = "https://sales-9se8.onrender.com/api"
 TEST_USER = {
     "email": "admin@sightspectrum.com",
     "password": "admin123"

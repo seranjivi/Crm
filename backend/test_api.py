@@ -4,7 +4,8 @@ import json
 def test_api():
     # Login first
     login_data = {'email': 'test@example.com', 'password': 'password123'}
-    response = requests.post('http://localhost:8000/api/auth/login', json=login_data)
+    # response = requests.post('http://localhost:8000/api/auth/login', json=login_data)
+    response = requests.post('https://sales-9se8.onrender.com/api/auth/login', json=login_data)
     token = response.json()['access_token']
     
     # Get clients

@@ -10,7 +10,8 @@ login_data = {
 try:
     # Login
     print("Testing login...")
-    login_response = requests.post("http://localhost:8000/api/auth/login", json=login_data)
+    # login_response = requests.post("http://localhost:8000/api/auth/login", json=login_data)
+    login_response = requests.post("https://sales-9se8.onrender.com/api/auth/login", json=login_data)
     print(f"Login status: {login_response.status_code}")
     
     if login_response.status_code == 200:
