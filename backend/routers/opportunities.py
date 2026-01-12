@@ -79,15 +79,18 @@ async def update_opportunity(opportunity_id: str, opportunity_data: OpportunityU
     if not update_dict:
         raise HTTPException(status_code=400, detail="No fields to update")
     
-    if "expected_closure_date" in update_dict and update_dict["expected_closure_date"]:
-        update_dict["expected_closure_date"] = update_dict["expected_closure_date"].isoformat()
+    # Handle date fields
+    for date_field in ['expected_closure_date', 'close_date', 'submission_deadline', 'target_kickoff_date']:
+        if date_field in update_dict and update_dict[date_field]:
+            if hasattr(update_dict[date_field], 'isoformat'):
+                update_dict[date_field] = update_dict[date_field].isoformat()
     
     # Handle created_at update if provided
     if "created_at" in update_dict and update_dict["created_at"]:
         if isinstance(update_dict["created_at"], str) and 'T' not in update_dict["created_at"]:
             # It's a date string like "2025-12-11", convert to datetime
             update_dict["created_at"] = update_dict["created_at"] + "T00:00:00+00:00"
-        elif isinstance(update_dict["created_at"], datetime):
+        elif hasattr(update_dict["created_at"], 'isoformat'):
             update_dict["created_at"] = update_dict["created_at"].isoformat()
     
     update_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -97,21 +100,21 @@ async def update_opportunity(opportunity_id: str, opportunity_data: OpportunityU
     if not opportunity:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     
-    # Workflow 1: Auto-convert to SOW if stage is Closed Won
-    if update_dict.get("stage") == "Closed Won":
+    # Workflow 1: Auto-convert to SOW if pipeline status is Converted to SOW
+    if update_dict.get("pipeline_status") == "Converted to SOW" or update_dict.get("stage") == "Closed Won":
         # Check if already converted
         if not opportunity.get("linked_sow_id"):
             # Create SOW
             sow_dict = {
                 "id": str(uuid.uuid4()),
-                "client_name": opportunity["client_name"],
-                "project_name": opportunity["opportunity_name"],
-                "sow_title": f"{opportunity['opportunity_name']} - SOW",
+                "client_name": opportunity.get("client_name"),
+                "project_name": opportunity.get("opportunity_name"),
+                "sow_title": update_dict.get("sow_title") or f"{opportunity.get('opportunity_name')} - SOW",
                 "sow_type": "New",
                 "start_date": None,
                 "end_date": opportunity.get("expected_closure_date"),
-                "value": opportunity.get("estimated_value", 0),
-                "currency": opportunity.get("currency", "USD"),
+                "value": update_dict.get("contract_value") or opportunity.get("estimated_value", 0),
+                "currency": opportunity.get("currency_code", "USD"),
                 "billing_type": "Fixed",
                 "status": "Active",
                 "owner": opportunity.get("sales_owner"),
@@ -131,7 +134,41 @@ async def update_opportunity(opportunity_id: str, opportunity_data: OpportunityU
             # Update opportunity with linked SOW
             update_dict["linked_sow_id"] = sow_dict["id"]
     
-    # Workflow 2: Auto-create Action Item if status is Completed
+    # Workflow 2: Auto-create Project if SOW status is Signed
+    if update_dict.get("sow_status") == "Signed":
+        # Check if project already exists for this opportunity
+        existing_project = await db.projects.count_documents({
+            "linked_opportunity_id": opportunity_id
+        })
+        
+        if existing_project == 0:
+            # Create Project in Delivery module
+            project_dict = {
+                "id": str(uuid.uuid4()),
+                "project_name": opportunity.get("opportunity_name"),
+                "client_name": opportunity.get("client_name"),
+                "opportunity_name": opportunity.get("opportunity_name"),
+                "linked_opportunity_id": opportunity_id,
+                "contract_value": update_dict.get("contract_value") or opportunity.get("estimated_value", 0),
+                "currency": opportunity.get("currency_code", "USD"),
+                "target_kickoff_date": update_dict.get("target_kickoff_date"),
+                "status": "Planned",
+                "project_type": "New",
+                "priority": "Medium",
+                "project_manager": opportunity.get("technical_poc"),
+                "delivery_spoc": opportunity.get("technical_poc"),
+                "sales_owner": opportunity.get("sales_owner"),
+                "description": f"Project created from signed SOW for {opportunity.get('opportunity_name')}",
+                "start_date": update_dict.get("target_kickoff_date"),
+                "end_date": None,
+                "budget": update_dict.get("contract_value") or opportunity.get("estimated_value", 0),
+                "attachments": update_dict.get("signed_document_assets", []),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.projects.insert_one(project_dict)
+    
+    # Workflow 3: Auto-create Action Item if status is Completed
     if update_dict.get("status") == "Completed":
         # Check if Action Item already exists for this opportunity
         existing_action_item = await db.action_items.count_documents({

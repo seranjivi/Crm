@@ -13,12 +13,31 @@ class AttachmentMetadata(BaseModel):
     url: str
     uploadedAt: str
 
+class QAClarification(BaseModel):
+    id: str
+    question: str
+    answer: Optional[str] = None
+    asked_by: Optional[str] = None
+    asked_date: Optional[datetime] = None
+    answered_by: Optional[str] = None
+    answered_date: Optional[datetime] = None
+    status: str = "Pending"  # Pending, Answered
+
 class OpportunityBase(BaseModel):
-    # Core Fields
+    # Details Tab Fields
     client_name: str  # Customer/Account
     opportunity_name: str
+    lead_source: Optional[str] = None
+    close_date: Optional[Union[datetime, date, str]] = None
+    type: Optional[str] = "New Business"  # New Business, Existing, Renewal
+    amount: Optional[float] = 0
+    currency_code: str = "USD"
+    internal_recommendation: Optional[str] = None
+    pipeline_status: str = "Prospecting"  # Pipeline Status controlling tabs
+    win_probability: int = 10  # Win Probability % based on pipeline status
+    next_steps: Optional[str] = None
     
-    # New Required Fields
+    # Legacy Fields (for backward compatibility)
     task_id: Optional[str] = None  # Shared Task ID from Lead (SAL0001)
     deal_value: Optional[float] = 0  # Alias for estimated_value
     probability_percent: Optional[int] = 0  # Probability %
@@ -42,6 +61,29 @@ class OpportunityBase(BaseModel):
                 return datetime.strptime(v, '%Y-%m-%d')
             return datetime.fromisoformat(v.replace('Z', '+00:00'))
         return v
+    
+    # RFP Details Tab Fields
+    rfp_title: Optional[str] = None
+    rfp_status: Optional[str] = None  # Won, Lost
+    submission_deadline: Optional[Union[datetime, date, str]] = None
+    bid_manager: Optional[str] = None
+    submission_mode: Optional[str] = None  # Email, Portal, Manual
+    portal_url: Optional[str] = None
+    rfp_document: Optional[AttachmentMetadata] = None
+    proposal_document: Optional[AttachmentMetadata] = None
+    presentation_document: Optional[AttachmentMetadata] = None
+    commercial_document: Optional[AttachmentMetadata] = None
+    other_documents: Optional[List[AttachmentMetadata]] = []
+    qa_clarifications: Optional[List[QAClarification]] = []
+    
+    # SOW Details Tab Fields
+    sow_title: Optional[str] = None
+    sow_release_version: Optional[str] = None
+    sow_status: Optional[str] = None  # Draft, Review, Signed
+    contract_value: Optional[float] = None
+    target_kickoff_date: Optional[Union[datetime, date, str]] = None
+    linked_proposal_reference: Optional[str] = None
+    signed_document_assets: Optional[List[AttachmentMetadata]] = []
     
     # Existing Fields (KEEP ALL)
     industry: Optional[str] = None
@@ -96,8 +138,20 @@ class OpportunityCreate(OpportunityBase):
         return v
 
 class OpportunityUpdate(BaseModel):
+    # Details Tab Fields
     client_name: Optional[str] = None
     opportunity_name: Optional[str] = None
+    lead_source: Optional[str] = None
+    close_date: Optional[Union[datetime, date, str]] = None
+    type: Optional[str] = None
+    amount: Optional[float] = None
+    currency_code: Optional[str] = None
+    internal_recommendation: Optional[str] = None
+    pipeline_status: Optional[str] = None
+    win_probability: Optional[int] = None
+    next_steps: Optional[str] = None
+    
+    # Legacy Fields (for backward compatibility)
     created_at: Optional[Union[datetime, date, str]] = None  # Allow updating creation date
     
     @field_validator('created_at', mode='before')
@@ -116,6 +170,38 @@ class OpportunityUpdate(BaseModel):
             # Handle datetime string
             return datetime.fromisoformat(v.replace('Z', '+00:00'))
         return v
+    deal_value: Optional[float] = None
+    probability_percent: Optional[int] = None
+    win_loss_reason: Optional[str] = None
+    last_interaction: Optional[Union[datetime, date, str]] = None
+    next_action: Optional[str] = None
+    partner_org: Optional[str] = None
+    partner_org_contact: Optional[str] = None
+    
+    # RFP Details Tab Fields
+    rfp_title: Optional[str] = None
+    rfp_status: Optional[str] = None
+    submission_deadline: Optional[Union[datetime, date, str]] = None
+    bid_manager: Optional[str] = None
+    submission_mode: Optional[str] = None
+    portal_url: Optional[str] = None
+    rfp_document: Optional[AttachmentMetadata] = None
+    proposal_document: Optional[AttachmentMetadata] = None
+    presentation_document: Optional[AttachmentMetadata] = None
+    commercial_document: Optional[AttachmentMetadata] = None
+    other_documents: Optional[List[AttachmentMetadata]] = None
+    qa_clarifications: Optional[List[QAClarification]] = None
+    
+    # SOW Details Tab Fields
+    sow_title: Optional[str] = None
+    sow_release_version: Optional[str] = None
+    sow_status: Optional[str] = None
+    contract_value: Optional[float] = None
+    target_kickoff_date: Optional[Union[datetime, date, str]] = None
+    linked_proposal_reference: Optional[str] = None
+    signed_document_assets: Optional[List[AttachmentMetadata]] = None
+    
+    # Existing Fields
     industry: Optional[str] = None
     region: Optional[str] = None
     country: Optional[str] = None
@@ -133,8 +219,6 @@ class OpportunityUpdate(BaseModel):
     next_steps: Optional[str] = None
     risks: Optional[str] = None
     status: Optional[str] = None
-    partner_org: Optional[str] = None
-    partner_org_contact: Optional[str] = None
 
 class Opportunity(OpportunityBase):
     model_config = ConfigDict(extra="ignore")

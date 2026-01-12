@@ -28,13 +28,25 @@ async def get_client(client_id: str, current_user: dict = Depends(get_current_us
         raise HTTPException(status_code=404, detail="Client not found")
     return client_doc
 
+def generate_client_id(client_name: str) -> str:
+    """Generate a client ID in the format: CL-{FIRST3LETTERS}-{TIMESTAMP}"""
+    timestamp = int(datetime.now().timestamp())
+    prefix = client_name[:3].upper() if client_name else 'CLI'
+    return f"{prefix}-{timestamp}"
+
 @router.post("", response_model=Client, status_code=status.HTTP_201_CREATED)
 async def create_client(client_data: ClientCreate, current_user: dict = Depends(get_current_user)):
     db = get_db()
     client_dict = client_data.model_dump()
-    client_dict["id"] = str(uuid.uuid4())
-    client_dict["created_at"] = datetime.now(timezone.utc).isoformat()
-    client_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    # Generate client ID
+    client_dict["client_id"] = generate_client_id(client_data.client_name)
+    client_dict["id"] = str(uuid.uuid4())  # Keep UUID as internal ID
+    
+    # Set timestamps
+    now = datetime.now(timezone.utc).isoformat()
+    client_dict["created_at"] = now
+    client_dict["updated_at"] = now
     
     await db.clients.insert_one(client_dict)
     return client_dict

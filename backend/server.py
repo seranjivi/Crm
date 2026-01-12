@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT_DIR))
 # Import database functions (don't initialize yet)
 from database import init_db, check_db_connection
 
-from routers import auth, users, users_new, clients, partners, leads, leads_new, opportunities, sows, activities, settings, dashboard, employee_performance, action_items, sales_activities, forecasts, master
+from routers import auth, users, users_new, clients, partners, leads, leads_new, opportunities, opportunity_collections, sows, activities, settings, dashboard, employee_performance, action_items, sales_activities, forecasts, master
 
 # Create the main app
 app = FastAPI(title="Sightspectrum CRM", version="1.0.0")
@@ -39,6 +39,7 @@ app.include_router(clients.router, prefix="/api")
 app.include_router(leads_new.router, prefix="/api")
 app.include_router(partners.router, prefix="/api")  # Renamed from vendors
 app.include_router(opportunities.router, prefix="/api")
+app.include_router(opportunity_collections.router, prefix="/api")
 app.include_router(action_items.router, prefix="/api")  # NEW
 app.include_router(sales_activities.router, prefix="/api")  # NEW
 app.include_router(forecasts.router, prefix="/api")  # NEW

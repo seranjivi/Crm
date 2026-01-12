@@ -10,6 +10,7 @@ class ClientContactBase(BaseModel):
     is_primary: bool = False
 
 class ClientBase(BaseModel):
+    client_id: Optional[str] = None  # Will be auto-generated
     client_name: str
     contact_email: Optional[str] = None
     region: Optional[str] = None

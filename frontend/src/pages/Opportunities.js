@@ -3,7 +3,7 @@ import api from '../utils/api';
 import { Button } from '../components/ui/button';
 import { Plus, ArrowRight } from 'lucide-react';
 import DataTable from '../components/DataTable';
-import OpportunityForm from '../components/OpportunityForm';
+import OpportunityFormTabbed from '../components/OpportunityFormTabbed';
 import AttachmentCell from '../components/attachments/AttachmentCell';
 import AttachmentPreviewModal from '../components/attachments/AttachmentPreviewModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
@@ -24,7 +24,7 @@ const Opportunities = () => {
 
   const fetchOpportunities = async () => {
     try {
-      const response = await api.get('/opportunities');
+      const response = await api.get('/opportunity-collections/opportunities');
       setOpportunities(response.data);
     } catch (error) {
       toast.error('Failed to fetch opportunities');
@@ -36,7 +36,7 @@ const Opportunities = () => {
   const handleDelete = async (opportunity) => {
     if (window.confirm(`Are you sure you want to delete this opportunity?`)) {
       try {
-        await api.delete(`/opportunities/${opportunity.id}`);
+        await api.delete(`/opportunity-collections/opportunities/${opportunity.id}`);
         toast.success('Opportunity deleted successfully');
         fetchOpportunities();
       } catch (error) {
@@ -67,8 +67,8 @@ const Opportunities = () => {
 
   const columns = [
     {
-      key: 'task_id',
-      header: 'Task ID',
+      key: 'opportunity_id',
+      header: 'Opportunity ID',
       render: (value) => (
         <span className="font-['JetBrains_Mono'] text-xs font-semibold text-[#2C6AA6]">
           {value || 'N/A'}
@@ -83,29 +83,38 @@ const Opportunities = () => {
     { key: 'client_name', header: 'Customer / Account' },
     { key: 'opportunity_name', header: 'Opportunity Name' },
     {
-      key: 'deal_value',
+      key: 'amount',
       header: 'Deal Value',
       render: (value, row) => (
         <span className="font-['JetBrains_Mono'] text-sm font-semibold text-emerald-700">
-          {row.currency || 'USD'} {(value || row.estimated_value || 0).toLocaleString()}
+          {row.currency || 'USD'} {(value || 0).toLocaleString()}
         </span>
       ),
     },
     { 
-      key: 'probability_percent', 
+      key: 'win_probability', 
       header: 'Probability',
       render: (value) => `${value || 0}%`
     },
-    { key: 'industry', header: 'Industry' },
+    { key: 'lead_source', header: 'Lead Source' },
     { 
-      key: 'region', 
-      header: 'Region / Country',
-      render: (value, row) => `${row.region || ''} / ${row.country || ''}`
+      key: 'type', 
+      header: 'Type',
+      render: (value) => {
+        const colors = {
+          'New Business': 'bg-blue-100 text-blue-700',
+          'Existing Business': 'bg-green-100 text-green-700',
+        };
+        return (
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[value] || 'bg-slate-100 text-slate-700'}`}>
+            {value || 'N/A'}
+          </span>
+        );
+      },
     },
-    { key: 'solution', header: 'Solution / Offering' },
     {
-      key: 'stage',
-      header: 'Stage',
+      key: 'pipeline_status',
+      header: 'Pipeline Status',
       render: (value) => {
         const colors = {
           Prospecting: 'bg-blue-100 text-blue-700',
@@ -116,54 +125,31 @@ const Opportunities = () => {
         };
         return (
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[value] || 'bg-slate-100 text-slate-700'}`}>
-            {value}
+            {value || 'N/A'}
           </span>
         );
       },
     },
     { 
-      key: 'expected_closure_date', 
-      header: 'Expected Closure',
+      key: 'close_date', 
+      header: 'Close Date',
       render: (value) => value ? new Date(value).toLocaleDateString() : 'N/A'
     },
-    { key: 'sales_owner', header: 'Sales Owner' },
-    { key: 'technical_poc', header: 'Technical PoC' },
-    { key: 'presales_poc', header: 'Presales PoC' },
-    { key: 'partner_org', header: 'Partner Org' },
-    { key: 'partner_org_contact', header: 'Partner Org Contact' },
-    { key: 'key_stakeholders', header: 'Key Stakeholders' },
-    { key: 'competitors', header: 'Competitors' },
+    { key: 'created_by', header: 'Created By' },
+    { key: 'internal_recommendation', header: 'Internal Recommendation' },
     { key: 'next_steps', header: 'Next Steps' },
-    { key: 'risks', header: 'Risks / Blockers' },
     {
       key: 'status',
       header: 'Status',
-      render: (value, row) => (
-        <div className="flex items-center gap-2">
-          <span
-            className={`px-2 py-1 rounded-full text-xs font-medium ${
-              value === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            {value}
-          </span>
-          {row.linked_sow_id && (
-            <span className="text-xs text-[#2C6AA6] flex items-center gap-1">
-              <ArrowRight className="h-3 w-3" /> SOW Created
-            </span>
-          )}
-        </div>
+      render: (value) => (
+        <span
+          className={`px-2 py-1 rounded-full text-xs font-medium ${
+            value === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
+          }`}
+        >
+          {value || 'N/A'}
+        </span>
       ),
-    },
-    {
-      key: 'attachments',
-      header: 'Attachments',
-      render: (value, row) => (
-        <AttachmentCell
-          attachments={value}
-          onClick={() => handleViewAttachments(row)}
-        />
-      )
     },
     { 
       key: 'updated_at', 
@@ -173,9 +159,9 @@ const Opportunities = () => {
   ];
 
   const filterOptions = {
-    stage: ['Qualified', 'Proposal', 'Demo', 'Negotiation', 'Contract', 'Closed Won', 'Lost'],
-    status: ['Active', 'Completed', 'Lost'],
-    region: [...new Set(opportunities.map(o => o.region).filter(Boolean))],
+    pipeline_status: ['Prospecting', 'Needs Analysis', 'Proposal', 'Negotiation', 'Closed'],
+    status: ['Active', 'Closed'],
+    type: ['New Business', 'Existing Business'],
   };
 
   if (loading) {
@@ -216,9 +202,9 @@ const Opportunities = () => {
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingOpportunity ? 'Edit Opportunity' : 'Add New Opportunity'}</DialogTitle>
+            <DialogTitle>{editingOpportunity ? 'Edit Opportunity' : 'Add New Opportunityy'}</DialogTitle>
           </DialogHeader>
-          <OpportunityForm opportunity={editingOpportunity} onClose={handleFormClose} />
+          <OpportunityFormTabbed opportunity={editingOpportunity} onClose={handleFormClose} />
         </DialogContent>
       </Dialog>
 

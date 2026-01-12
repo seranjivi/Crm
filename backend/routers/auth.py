@@ -20,16 +20,16 @@ async def register(user_data: UserCreate):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
-    
+
     # Create new user
     user_dict = user_data.model_dump()
     user_dict["id"] = str(uuid.uuid4())
     user_dict["password"] = get_password_hash(user_data.password)
     user_dict["created_at"] = datetime.now(timezone.utc).isoformat()
     user_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
-    
+
     await db.users.insert_one(user_dict)
-    
+
     # Remove password from response
     user_dict.pop("password")
     return user_dict
@@ -39,34 +39,40 @@ async def login(credentials: UserLogin):
     print(f"=== LOGIN ATTEMPT ===")
     print(f"Email: {credentials.email}")
     print(f"Password: {credentials.password}")
-    
+
     # Simple hardcoded check for demo credentials
     if credentials.email == "admin@sightspectrum.com" and credentials.password == "admin123":
         print("✓ Credentials match - creating token")
-        
+
         # Create simple token
         import time
         user_id = f"demo_user_{int(time.time())}"
-        access_token = f"demo_token_{user_id}"
-        
+        access_token = create_access_token(
+            {
+                "sub": user_id,
+                "email": "admin@sightspectrum.com",
+                "role": "Admin",
+            }
+        )
+
         mock_user = {
             "id": user_id,
             "email": "admin@sightspectrum.com",
             "full_name": "Admin User",
-            "role": "admin",
+            "role": "Admin",
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
-        
+
         print(f"✓ Token created: {access_token}")
         print(f"✓ User data: {mock_user}")
-        
+
         return {
             "access_token": access_token,
             "token_type": "bearer",
             "user": mock_user
         }
-    
+
     print("✗ Credentials don't match - returning error")
     # If credentials don't match, return error
     raise HTTPException(

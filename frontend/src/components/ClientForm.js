@@ -91,11 +91,27 @@ const ClientForm = ({ client, onClose }) => {
     setFormData(prev => ({ ...prev, addresses: updatedAddresses }));
   };
 
-  const addAddress = () => {
-    setFormData(prev => ({
-      ...prev,
-      addresses: [...prev.addresses, { address: '', country: '', region: '' }]
+  const setPrimaryAddress = (index) => {
+    const updatedAddresses = formData.addresses.map((addr, i) => ({
+      ...addr,
+      is_primary: i === index
     }));
+    setFormData(prev => ({ ...prev, addresses: updatedAddresses }));
+  };
+
+  const addAddress = () => {
+    setFormData(prev => {
+      const newAddress = { 
+        address: '', 
+        country: '', 
+        region: '',
+        is_primary: prev.addresses.length === 0 // First address is primary by default
+      };
+      return {
+        ...prev,
+        addresses: [...prev.addresses, newAddress]
+      };
+    });
   };
 
   const removeAddress = (index) => {
@@ -136,12 +152,26 @@ const ClientForm = ({ client, onClose }) => {
       newErrors.customer_type = 'Customer type is required';
     }
     
-    if (!formData.country) {
-      // Check if at least one address has a country
-      const hasCountry = formData.addresses.some(addr => addr.country);
-      if (!hasCountry) {
-        newErrors.country = 'At least one address must have a country';
+    // Validate addresses
+    let hasAtLeastOneAddress = false;
+    formData.addresses.forEach((address, index) => {
+      if (address.country) {
+        hasAtLeastOneAddress = true;
       }
+      
+      if (!address.address) {
+        newErrors[`address_${index}`] = 'Address is required';
+      }
+      if (!address.region) {
+        newErrors[`region_${index}`] = 'Region is required';
+      }
+      if (!address.country) {
+        newErrors[`country_${index}`] = 'Country is required';
+      }
+    });
+    
+    if (!hasAtLeastOneAddress) {
+      newErrors.addresses = 'At least one address with country is required';
     }
     
     if (!formData.account_owner) {
@@ -424,12 +454,29 @@ const ClientForm = ({ client, onClose }) => {
 
         {/* Section 3 - Address Details */}
         <div>
-          <h3 className="text-lg font-medium text-[#0A2A43] mb-4">Address Details</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium text-[#0A2A43]">Address Details</h3>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addAddress}
+              className="flex items-center gap-2"
+              data-testid="add-address-button"
+            >
+              <Plus className="w-4 h-4" />
+              Add Address
+            </Button>
+          </div>
           <div className="space-y-4">
             {formData.addresses.map((address, index) => (
-              <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start p-4 border rounded-lg">
+              <div 
+                key={index} 
+                className={`grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg ${address.is_primary ? 'border-blue-500 bg-blue-50' : ''}`}
+              >
                 <div className="md:col-span-2">
-                  <Label htmlFor={`address_${index}`}>Address</Label>
+                  <Label htmlFor={`address_${index}`}>
+                    Address {address.is_primary && <span className="text-blue-600 ml-2">(Primary)</span>}
+                  </Label>
                   <Textarea
                     id={`address_${index}`}
                     value={address.address}
@@ -437,23 +484,8 @@ const ClientForm = ({ client, onClose }) => {
                     rows={3}
                     placeholder="123 Main St, Suite 100, City, State 12345"
                     data-testid={`address-${index}`}
+                    className={errors[`address_${index}`] ? 'border-red-500' : ''}
                   />
-                </div>
-                <div>
-                  <Label htmlFor={`country_${index}`}>Country *</Label>
-                  <CountryDropdown
-                    value={address.country}
-                    onChange={(value) => handleAddressChange(index, 'country', value)}
-                    region={address.region}
-                    placeholder="Select country..."
-                    required={true}
-                    showRequiredIndicator={true}
-                    className={errors.country ? 'border-red-500' : ''}
-                    data-testid={`country-${index}`}
-                  />
-                  {errors.country && (
-                    <p className="text-red-500 text-sm mt-1">{errors.country}</p>
-                  )}
                 </div>
                 <div>
                   <Label htmlFor={`region_${index}`}>Region / State</Label>
@@ -462,7 +494,7 @@ const ClientForm = ({ client, onClose }) => {
                     onValueChange={(value) => handleAddressChange(index, 'region', value)}
                     data-testid={`region-${index}`}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={errors[`region_${index}`] ? 'border-red-500' : ''}>
                       <SelectValue placeholder="Select region..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -477,16 +509,48 @@ const ClientForm = ({ client, onClose }) => {
                       <SelectItem value="Caribbean">Caribbean</SelectItem>
                     </SelectContent>
                   </Select>
+                  {errors[`region_${index}`] && (
+                    <p className="text-red-500 text-sm mt-1">{errors[`region_${index}`]}</p>
+                  )}
                 </div>
-                <div className="flex items-end">
+                <div>
+                  <Label htmlFor={`country_${index}`}>Country *</Label>
+                  <CountryDropdown
+                    value={address.country}
+                    onChange={(value) => handleAddressChange(index, 'country', value)}
+                    region={address.region}
+                    placeholder="Select country..."
+                    required={true}
+                    showRequiredIndicator={true}
+                    className={errors[`country_${index}`] ? 'border-red-500' : ''}
+                    data-testid={`country-${index}`}
+                  />
+                  {errors[`country_${index}`] && (
+                    <p className="text-red-500 text-sm mt-1">{errors[`country_${index}`]}</p>
+                  )}
+                </div>
+                <div className="flex items-end space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPrimaryAddress(index)}
+                    disabled={address.is_primary}
+                    className={`${address.is_primary ? 'bg-blue-100 text-blue-700' : 'hover:bg-blue-50'}`}
+                    data-testid={`set-primary-${index}`}
+                  >
+                    {address.is_primary ? 'Primary' : 'Set as Primary'}
+                  </Button>
                   {formData.addresses.length > 1 && (
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
                       onClick={() => removeAddress(index)}
                       className="text-red-500 hover:text-red-700"
                       data-testid={`remove-address-${index}`}
+                      disabled={address.is_primary}
+                      title={address.is_primary ? 'Cannot remove primary address' : 'Remove address'}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -494,16 +558,6 @@ const ClientForm = ({ client, onClose }) => {
                 </div>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addAddress}
-              className="flex items-center gap-2"
-              data-testid="add-address-button"
-            >
-              <Plus className="w-4 h-4" />
-              Add Address
-            </Button>
           </div>
         </div>
 

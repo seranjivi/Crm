@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
-import { Button } from '../components/ui/button';
 import { Plus } from 'lucide-react';
-import DataTable from '../components/DataTable';
+import StandardDataTable from '../components/StandardDataTable';
 import ClientForm from '../components/ClientForm';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { Dialog, DialogContent } from '../components/ui/dialog';
 import { toast } from 'sonner';
 import { formatDate } from '../utils/dateUtils';
 
@@ -13,7 +12,6 @@ const Clients = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
-  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchClients();
@@ -129,44 +127,36 @@ const Clients = () => {
   };
 
   const columns = [
-    { key: 'client_name', header: 'Client Name' },
-    {
-      key: 'created_at',
-      header: 'Date',
-      render: (value) => <span className="text-xs text-slate-700">{formatDate(value)}</span>
-    },
-    { key: 'contact_email', header: 'Email' },
-    { key: 'region', header: 'Region' },
-    { key: 'country', header: 'Country' },
     { 
-      key: 'service_type', 
-      header: 'Service Type',
-      render: (value) => (
-        <span className="text-xs text-slate-700">{value || 'Not specified'}</span>
-      )
+      key: 'client_id', 
+      header: 'Client ID',
     },
     { 
-      key: 'client_tier', 
-      header: 'Client Tier',
-      render: (value) => (
-        <span
-          className={`px-2 py-1 rounded-full text-xs font-medium ${
-            value === 'Key Client' ? 'bg-blue-100 text-blue-700' : 
-            value === 'Strategic' ? 'bg-purple-100 text-purple-700' : 
-            'bg-slate-100 text-slate-700'
-          }`}
-        >
-          {value || 'Normal'}
-        </span>
+      key: 'client_name', 
+      header: 'Client Name',
+      render: (value) => <span className="font-medium">{value}</span>,
+    },
+    { 
+      key: 'contact_email', 
+      header: 'Email',
+      render: (value) => value && (
+        <a href={`mailto:${value}`} className="text-blue-600 hover:underline">
+          {value}
+        </a>
       ),
     },
-    {
-      key: 'client_status',
+    { 
+      key: 'region', 
+      header: 'Region' 
+    },
+    { 
+      key: 'client_status', 
       header: 'Status',
       render: (value) => (
         <span
-          className={`px-2 py-1 rounded-full text-xs font-medium ${
-            value === 'Active' ? 'bg-emerald-100 text-emerald-700' : 
+          className={`px-2 py-1 text-xs font-medium rounded-full ${
+            value === 'Active' ? 'bg-green-100 text-green-700' :
+            value === 'Inactive' ? 'bg-red-100 text-red-700' :
             value === 'Prospect' ? 'bg-yellow-100 text-yellow-700' : 
             'bg-slate-100 text-slate-700'
           }`}
@@ -175,54 +165,49 @@ const Clients = () => {
         </span>
       ),
     },
+    { 
+      key: 'client_tier', 
+      header: 'Tier',
+      render: (value) => (
+        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+          {value || 'N/A'}
+        </span>
+      ),
+    },
+    { 
+      key: 'created_at', 
+      header: 'Created',
+      render: (value) => <span className="text-sm text-slate-700">{formatDate(value)}</span>
+    },
   ];
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2C6AA6]"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4" data-testid="clients-page">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 font-['Manrope']">Clients</h1>
-          <p className="text-sm text-slate-600 mt-0.5">Manage your client accounts</p>
-        </div>
-        <Button
-          onClick={() => setShowForm(true)}
-          data-testid="add-client-btn"
-          className="bg-[#0A2A43] hover:bg-[#0A2A43]/90 h-9 text-sm"
-        >
-          <Plus className="h-3.5 w-3.5 mr-1.5" />
-          Add Client
-        </Button>
-      </div>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".csv,.xlsx"
-        onChange={handleFileUpload}
-        style={{ display: 'none' }}
-      />
-
-      <DataTable
+    <div className="container mx-auto py-6 px-4">
+      <StandardDataTable
+        title="Clients"
         data={clients}
         columns={columns}
         onEdit={handleEdit}
         onDelete={handleDelete}
-        onImport={handleImport}
-        filterOptions={{}}
         testId="clients-table"
+        onAddNew={() => {
+          setEditingClient(null);
+          setShowForm(true);
+        }}
+        loading={loading}
+        addButtonText="Add Client"
       />
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-0">
-          <ClientForm client={editingClient} onClose={handleFormClose} />
+          <ClientForm 
+            client={editingClient} 
+            onSuccess={() => {
+              fetchClients();
+              setShowForm(false);
+            }} 
+            onClose={() => setShowForm(false)} 
+          />
         </DialogContent>
       </Dialog>
     </div>

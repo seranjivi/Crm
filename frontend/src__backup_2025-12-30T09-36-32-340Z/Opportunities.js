@@ -216,7 +216,7 @@ const Opportunities = () => {
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingOpportunity ? 'Edit Opportunity' : 'Add New Opportunity'}</DialogTitle>
+            <DialogTitle>{editingOpportunity ? 'Edit Opportunity' : 'Add New Opportunityy'}</DialogTitle>
           </DialogHeader>
           <OpportunityForm opportunity={editingOpportunity} onClose={handleFormClose} />
         </DialogContent>
