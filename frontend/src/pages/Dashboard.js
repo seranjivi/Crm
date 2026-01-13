@@ -1,41 +1,149 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
-import { Users, Building2, Target, TrendingUp, FileText, Activity, DollarSign, TrendingDown, Calendar, Briefcase, CheckCircle, Clock, XCircle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { 
+  Users, Building2, Target, TrendingUp, FileText, Activity, 
+  DollarSign, TrendingDown, Calendar, Briefcase, CheckCircle, 
+  Clock, XCircle, Globe, User, Filter, FileSearch, Users as TeamIcon,
+  FileCheck, FileSignature, MapPin, UserCheck, UserPlus
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Button } from '../components/ui/button';
+import { 
+  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, 
+  CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList 
+} from 'recharts';
+import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
 
 const Dashboard = () => {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState('all');
+  const [dateRange, setDateRange] = useState({
+    from: new Date(new Date().setMonth(new Date().getMonth() - 1)),
+    to: new Date()
+  });
+  const [selectedRegion, setSelectedRegion] = useState('all');
+  const [selectedOwner, setSelectedOwner] = useState('all');
+  const [regions, setRegions] = useState([]);
+  const [owners, setOwners] = useState([]);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
     fetchAnalytics();
-  }, [selectedMonth]);
+    fetchRegions();
+    fetchOwners();
+  }, [dateRange, selectedRegion, selectedOwner]);
+
+  const fetchRegions = async () => {
+    try {
+      const response = await api.get('/regions');
+      setRegions(response.data);
+    } catch (error) {
+      console.error('Failed to fetch regions:', error);
+    }
+  };
+
+  const fetchOwners = async () => {
+    try {
+      const response = await api.get('/users/sales-owners');
+      setOwners(response.data);
+    } catch (error) {
+      console.error('Failed to fetch owners:', error);
+    }
+  };
 
   const fetchAnalytics = async () => {
     try {
-      const params = selectedMonth !== 'all' ? { month: selectedMonth } : {};
+      const params = {
+        startDate: format(dateRange.from, 'yyyy-MM-dd'),
+        endDate: format(dateRange.to, 'yyyy-MM-dd'),
+        region: selectedRegion !== 'all' ? selectedRegion : undefined,
+        owner: selectedOwner !== 'all' ? selectedOwner : undefined
+      };
       const response = await api.get('/dashboard/analytics', { params });
       setAnalytics(response.data);
     } catch (error) {
-      console.error('Failed to fetch analytics:test', error);
+      console.error('Failed to fetch analytics:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const getMonthOptions = () => {
-    const months = [];
-    const currentDate = new Date();
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-      const value = date.toISOString().slice(0, 7);
-      const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      months.push({ value, label });
-    }
-    return months;
+  const formatDateRange = () => {
+    if (!dateRange?.from) return 'Select date range';
+    if (!dateRange?.to) return format(dateRange.from, 'MMM d, yyyy');
+    return `${format(dateRange.from, 'MMM d, yyyy')} - ${format(dateRange.to, 'MMM d, yyyy')}`;
+  };
+
+  const renderConversionFunnel = () => {
+    const funnelData = [
+      { name: 'Leads', value: analytics?.funnel?.leads || 0, fill: '#2C6AA6' },
+      { name: 'Qualified', value: analytics?.funnel?.qualified || 0, fill: '#3B82F6' },
+      { name: 'Opportunity', value: analytics?.funnel?.opportunities || 0, fill: '#8B5CF6' },
+      { name: 'Won', value: analytics?.funnel?.won || 0, fill: '#10B981' },
+    ];
+
+    return (
+      <Card className="border-slate-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold font-['Manrope']">Conversion Funnel</CardTitle>
+        </CardHeader>
+        <CardContent className="pb-4">
+          <div className="flex flex-col items-center space-y-2">
+            {funnelData.map((stage, index) => (
+              <div key={stage.name} className="w-full">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-slate-600">{stage.name}</span>
+                  <span className="text-sm font-bold text-slate-900">{stage.value}</span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-4">
+                  <div 
+                    className="h-4 rounded-full transition-all duration-500 ease-in-out"
+                    style={{
+                      width: `${(stage.value / (funnelData[0]?.value || 1)) * 100}%`,
+                      backgroundColor: stage.fill,
+                    }}
+                  />
+                </div>
+                {index < funnelData.length - 1 && (
+                  <div className="flex justify-center -mt-1">
+                    <svg className="w-4 h-4 text-slate-300" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 011.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const renderRegionalDistribution = () => {
+    const regionData = analytics?.regional_distribution || [];
+    
+    return (
+      <Card className="border-slate-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold font-['Manrope']">Regional Distribution</CardTitle>
+        </CardHeader>
+        <CardContent className="pb-4">
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={regionData} layout="vertical" margin={{ left: 30 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis type="number" tick={{ fontSize: 10 }} />
+              <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={80} />
+              <Tooltip contentStyle={{ fontSize: 12 }} />
+              <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]}>
+                <LabelList dataKey="value" position="right" style={{ fill: '#64748b', fontSize: 12 }} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    );
   };
 
   if (loading) {
@@ -120,34 +228,85 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-5" data-testid="dashboard-page">
-      {/* Header - Compact */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 font-['Manrope']">Dashboard</h1>
-          <p className="text-sm text-slate-600 mt-0.5">Sales performance overview</p>
+      {/* Header with Global Filters */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 font-['Manrope']">Dashboard</h1>
+            <p className="text-sm text-slate-600 mt-0.5">Sales performance overview</p>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 text-xs"
+              onClick={() => setShowDatePicker(!showDatePicker)}
+            >
+              <Calendar className="h-3.5 w-3.5 mr-2" />
+              {formatDateRange()}
+            </Button>
+          </div>
         </div>
-        
-        {/* Month Filter */}
-        <div className="flex items-center space-x-2">
-          <Calendar size={16} className="text-slate-500" />
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-48 h-8 text-xs">
-              <SelectValue placeholder="Select month" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Time</SelectItem>
-              {getMonthOptions().map(({ value, label }) => (
-                <SelectItem key={value} value={value} className="text-xs">
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+
+        {/* Global Filters */}
+        <div className={`grid grid-cols-1 md:grid-cols-3 gap-3 transition-all duration-200 ${showDatePicker ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-600">Date Range</label>
+            <div className="flex border rounded-md p-2 text-sm items-center">
+              <Calendar className="h-4 w-4 mr-2 text-slate-500" />
+              <span>{formatDateRange()}</span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="ml-auto h-6 text-xs"
+                onClick={() => {}}
+              >
+                Change
+              </Button>
+            </div>
+          </div>
+          
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-600">Region</label>
+            <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+              <SelectTrigger className="h-8 text-xs">
+                <Globe className="h-3.5 w-3.5 mr-2 text-slate-500" />
+                <SelectValue placeholder="All Regions" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Regions</SelectItem>
+                {regions.map(region => (
+                  <SelectItem key={region.id} value={region.id} className="text-xs">
+                    {region.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-600">Account Owner</label>
+            <Select value={selectedOwner} onValueChange={setSelectedOwner}>
+              <SelectTrigger className="h-8 text-xs">
+                <User className="h-3.5 w-3.5 mr-2 text-slate-500" />
+                <SelectValue placeholder="All Owners" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Owners</SelectItem>
+                {owners.map(owner => (
+                  <SelectItem key={owner.id} value={owner.id} className="text-xs">
+                    {owner.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
       {/* KPI Cards - Horizontal Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         {/* Leads KPI Card */}
         <Card className="border-slate-200" data-testid="leads-kpi-card">
           <CardHeader className="pb-3">
@@ -366,100 +525,237 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Charts - Compact */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      {/* Analytics Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* Conversion Funnel */}
+        {renderConversionFunnel()}
+        
+        {/* Regional Distribution */}
+        {renderRegionalDistribution()}
+        
+        {/* Source Distribution */}
         <Card className="border-slate-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold font-['Manrope']">Opportunities by Stage</CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4">
-            {pipelineData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={pipelineData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip contentStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="value" fill="#2C6AA6" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[240px] flex items-center justify-center text-sm text-slate-500">
-                No opportunity data available
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold font-['Manrope']">Leads by Source</CardTitle>
+            <CardTitle className="text-sm font-semibold font-['Manrope']">Source Distribution</CardTitle>
           </CardHeader>
           <CardContent className="pb-4">
             {leadsSourceData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie
-                    data={leadsSourceData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    style={{ fontSize: 11 }}
-                  >
-                    {leadsSourceData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="space-y-4">
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={leadsSourceData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {leadsSourceData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ fontSize: 12 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {leadsSourceData.map((entry, index) => (
+                    <div key={`legend-${index}`} className="flex items-center">
+                      <div 
+                        className="w-3 h-3 rounded-sm mr-2" 
+                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                      />
+                      <span className="truncate">{entry.name}</span>
+                      <span className="ml-auto font-medium">{entry.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : (
-              <div className="h-[240px] flex items-center justify-center text-sm text-slate-500">
-                No lead source data available
+              <div className="h-48 flex items-center justify-center text-sm text-slate-500">
+                No source data available
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Activities Summary - Compact */}
+      {/* RFP & SOW Tracking */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        {/* RFP Tracking */}
+        <Card className="border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold font-['Manrope'] flex items-center gap-2">
+                <FileSearch className="h-4 w-4 text-blue-500" />
+                RFP Tracking
+              </CardTitle>
+              <Button variant="ghost" size="sm" className="h-6 text-xs">
+                View All
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4">
+            <div className="space-y-4">
+              {analytics?.rfp_tracking?.map((rfp, index) => (
+                <div key={index} className="p-3 border rounded-lg hover:bg-slate-50 transition-colors">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{rfp.title}</p>
+                      <p className="text-xs text-slate-500 mt-1">Due: {new Date(rfp.due_date).toLocaleDateString()}</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        rfp.status === 'draft' ? 'bg-amber-100 text-amber-800' :
+                        rfp.status === 'submitted' ? 'bg-blue-100 text-blue-800' :
+                        'bg-slate-100 text-slate-800'
+                      }`}>
+                        {rfp.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {(!analytics?.rfp_tracking || analytics.rfp_tracking.length === 0) && (
+                <div className="text-center py-6 text-sm text-slate-500">
+                  No active RFPs
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* SOW Tracking */}
+        <Card className="border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold font-['Manrope'] flex items-center gap-2">
+                <FileSignature className="h-4 w-4 text-purple-500" />
+                SOW Tracking
+              </CardTitle>
+              <Button variant="ghost" size="sm" className="h-6 text-xs">
+                View All
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pb-4">
+            <div className="space-y-4">
+              {analytics?.sow_tracking?.active_sows_list?.map((sow, index) => (
+                <div key={index} className="p-3 border rounded-lg hover:bg-slate-50 transition-colors">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{sow.project_name}</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {sow.client_name} • ${sow.value?.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        sow.status === 'draft' ? 'bg-amber-100 text-amber-800' :
+                        sow.status === 'sent' ? 'bg-blue-100 text-blue-800' :
+                        sow.status === 'signed' ? 'bg-green-100 text-green-800' :
+                        'bg-slate-100 text-slate-800'
+                      }`}>
+                        {sow.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {(!analytics?.sow_tracking?.active_sows_list || analytics.sow_tracking.active_sows_list.length === 0) && (
+                <div className="text-center py-6 text-sm text-slate-500">
+                  No active SOWs
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Staffing Requests */}
       <Card className="border-slate-200">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold font-['Manrope']">Activities Overview</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold font-['Manrope'] flex items-center gap-2">
+              <UserPlus className="h-4 w-4 text-cyan-500" />
+              Staffing Requests
+            </CardTitle>
+            <Button variant="ghost" size="sm" className="h-6 text-xs">
+              View All
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="pb-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <div className="flex items-center space-x-1.5">
-                <Activity className="h-4 w-4 text-amber-500" />
-                <span className="text-xl font-bold text-slate-900 font-['JetBrains_Mono']">
-                  {analytics?.activities?.pending_activities || 0}
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 mt-0.5">Pending Activities</p>
-            </div>
-            <div>
-              <div className="flex items-center space-x-1.5">
-                <Activity className="h-4 w-4 text-emerald-500" />
-                <span className="text-xl font-bold text-slate-900 font-['JetBrains_Mono']">
-                  {analytics?.activities?.completed_activities || 0}
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 mt-0.5">Completed Activities</p>
-            </div>
-            <div>
-              <div className="flex items-center space-x-1.5">
-                <Target className="h-4 w-4 text-[#2C6AA6]" />
-                <span className="text-xl font-bold text-slate-900 font-['JetBrains_Mono']">
-                  {analytics?.leads?.conversion_rate || 0}%
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 mt-0.5">Lead Conversion Rate</p>
-            </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Role
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Project
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Skills
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Timeline
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-slate-200">
+                {analytics?.staffing_requests?.map((request, index) => (
+                  <tr key={index} className="hover:bg-slate-50">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-slate-900">
+                      {request.role}
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-slate-500">
+                      {request.project_name}
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      <div className="flex flex-wrap gap-1">
+                        {request.skills?.slice(0, 3).map((skill, i) => (
+                          <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            {skill}
+                          </span>
+                        ))}
+                        {request.skills?.length > 3 && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800">
+                            +{request.skills.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        request.status === 'open' ? 'bg-green-100 text-green-800' :
+                        request.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                        'bg-slate-100 text-slate-800'
+                      }`}>
+                        {request.status.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-slate-500">
+                      {new Date(request.start_date).toLocaleDateString()} - {new Date(request.end_date).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+                {(!analytics?.staffing_requests || analytics.staffing_requests.length === 0) && (
+                  <tr>
+                    <td colSpan="5" className="px-3 py-6 text-center text-sm text-slate-500">
+                      No active staffing requests
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>

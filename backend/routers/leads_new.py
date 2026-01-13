@@ -80,6 +80,10 @@ async def create_lead(lead_data: LeadCreate, current_user: dict = Depends(get_cu
     # Set lead_owner to current user (system-controlled)
     lead_dict["lead_owner"] = current_user["full_name"]
     
+    # Set default stage if not provided
+    if "stage" not in lead_dict:
+        lead_dict["stage"] = "New Lead"  # Default stage
+    
     # Calculate initial lead status
     initial_status, reason = calculate_lead_status(
         lead_dict["stage"], 

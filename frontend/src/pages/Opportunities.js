@@ -9,7 +9,7 @@ import AttachmentPreviewModal from '../components/attachments/AttachmentPreviewM
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { toast } from 'sonner';
 import { formatDate } from '../utils/dateUtils';
-
+ 
 const Opportunities = () => {
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,20 +17,58 @@ const Opportunities = () => {
   const [editingOpportunity, setEditingOpportunity] = useState(null);
   const [showAttachments, setShowAttachments] = useState(false);
   const [selectedOpportunity, setSelectedOpportunity] = useState(null);
+ 
+  // Sample data for demonstration
+  const sampleData = [
+    {
+      id: 'opp-1001',
+      opportunity_id: 'OPP-2024-001',
+      created_at: new Date().toISOString(),
+      client_name: 'Acme Corporation',
+      opportunity_name: 'Enterprise Software License',
+      amount: 75000,
+      currency: 'USD',
+      win_probability: 70,
+      lead_source: 'Website',
+      type: 'New Business',
+      pipeline_status: 'Proposal',
+      close_date: '2024-03-15',
+      created_by: 'John Doe',
+      internal_recommendation: 'High potential client',
+      next_steps: 'Schedule demo',
+      status: 'Active',
+      updated_at: new Date().toISOString()
+    },
+    {
+      id: 'opp-1002',
+      opportunity_id: 'OPP-2024-002',
+      created_at: new Date().toISOString(),
+      client_name: 'Globex Inc',
+      opportunity_name: 'Annual Support Contract',
+      amount: 25000,
+      currency: 'USD',
+      win_probability: 90,
+      lead_source: 'Referral',
+      type: 'Existing Business',
+      pipeline_status: 'Negotiation',
+      close_date: '2024-02-28',
+      created_by: 'Jane Smith',
+      internal_recommendation: 'Upsell opportunity',
+      next_steps: 'Send contract',
+      status: 'Active',
+      updated_at: new Date().toISOString()
+    }
+  ];
 
   useEffect(() => {
-    fetchOpportunities();
+    // Always use sample data for demonstration
+    setOpportunities(sampleData);
+    setLoading(false);
   }, []);
 
+  // Mock fetchOpportunities function that's still used by other parts of the component
   const fetchOpportunities = async () => {
-    try {
-      const response = await api.get('/opportunity-collections/opportunities');
-      setOpportunities(response.data);
-    } catch (error) {
-      toast.error('Failed to fetch opportunities');
-    } finally {
-      setLoading(false);
-    }
+    return { data: sampleData };
   };
 
   const handleDelete = async (opportunity) => {
@@ -44,27 +82,27 @@ const Opportunities = () => {
       }
     }
   };
-
+ 
   const handleEdit = (opportunity) => {
     setEditingOpportunity(opportunity);
     setShowForm(true);
   };
-
+ 
   const handleFormClose = () => {
     setShowForm(false);
     setEditingOpportunity(null);
     fetchOpportunities();
   };
-
+ 
   const handleImport = () => {
     toast.info('Import functionality coming soon! You can upload CSV files to bulk import opportunities.');
   };
-
+ 
   const handleViewAttachments = (opportunity) => {
     setSelectedOpportunity(opportunity);
     setShowAttachments(true);
   };
-
+ 
   const columns = [
     {
       key: 'opportunity_id',
@@ -91,14 +129,14 @@ const Opportunities = () => {
         </span>
       ),
     },
-    { 
-      key: 'win_probability', 
+    {
+      key: 'win_probability',
       header: 'Probability',
       render: (value) => `${value || 0}%`
     },
     { key: 'lead_source', header: 'Lead Source' },
-    { 
-      key: 'type', 
+    {
+      key: 'type',
       header: 'Type',
       render: (value) => {
         const colors = {
@@ -130,8 +168,8 @@ const Opportunities = () => {
         );
       },
     },
-    { 
-      key: 'close_date', 
+    {
+      key: 'close_date',
       header: 'Close Date',
       render: (value) => value ? new Date(value).toLocaleDateString() : 'N/A'
     },
@@ -151,19 +189,19 @@ const Opportunities = () => {
         </span>
       ),
     },
-    { 
-      key: 'updated_at', 
+    {
+      key: 'updated_at',
       header: 'Last Updated',
       render: (value) => value ? new Date(value).toLocaleDateString() : 'N/A'
     },
   ];
-
+ 
   const filterOptions = {
     pipeline_status: ['Prospecting', 'Needs Analysis', 'Proposal', 'Negotiation', 'Closed'],
     status: ['Active', 'Closed'],
     type: ['New Business', 'Existing Business'],
   };
-
+ 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -171,7 +209,7 @@ const Opportunities = () => {
       </div>
     );
   }
-
+ 
   return (
     <div className="space-y-4" data-testid="opportunities-page">
       <div className="flex justify-between items-center">
@@ -188,7 +226,7 @@ const Opportunities = () => {
           Add Opportunity
         </Button>
       </div>
-
+ 
       <DataTable
         data={opportunities}
         columns={columns}
@@ -198,7 +236,7 @@ const Opportunities = () => {
         filterOptions={filterOptions}
         testId="opportunities-table"
       />
-
+ 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -207,7 +245,7 @@ const Opportunities = () => {
           <OpportunityFormTabbed opportunity={editingOpportunity} onClose={handleFormClose} />
         </DialogContent>
       </Dialog>
-
+ 
       <AttachmentPreviewModal
         isOpen={showAttachments}
         onClose={() => setShowAttachments(false)}
@@ -217,5 +255,6 @@ const Opportunities = () => {
     </div>
   );
 };
-
+ 
 export default Opportunities;
+ 

@@ -2,8 +2,8 @@ import React from 'react';
 import DataTable from './DataTable';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { Edit2, Trash2, Eye } from 'lucide-react';
-
+import { Edit2, Trash2, Eye, Plus } from 'lucide-react';
+ 
 export const statusBadgeVariant = (status) => {
   const statusMap = {
     'Active': 'success',
@@ -17,7 +17,7 @@ export const statusBadgeVariant = (status) => {
   };
   return statusMap[status] || 'default';
 };
-
+ 
 const StandardDataTable = ({
   data = [],
   columns = [],
@@ -36,50 +36,10 @@ const StandardDataTable = ({
   onAddNew,
   loading = false
 }) => {
-  // Add action column if onEdit or onDelete are provided
+  // Use the provided columns directly
+  // The DataTable component will handle adding the Actions column
   const tableColumns = [...columns];
-  
-  if (onEdit || onDelete || onView) {
-    tableColumns.push({
-      key: 'actions',
-      header: 'Actions',
-      render: (item) => (
-        <div className="flex space-x-2">
-          {onView && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onView(item)}
-              className="h-8 w-8 p-0"
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-          )}
-          {onEdit && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onEdit(item)}
-              className="h-8 w-8 p-0"
-            >
-              <Edit2 className="h-4 w-4" />
-            </Button>
-          )}
-          {onDelete && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onDelete(item)}
-              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      ),
-    });
-  }
-
+ 
   // Format data for status badges
   const formattedData = data.map(item => {
     const formattedItem = { ...item };
@@ -94,7 +54,7 @@ const StandardDataTable = ({
     });
     return formattedItem;
   });
-
+ 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -106,12 +66,13 @@ const StandardDataTable = ({
           </Button>
         )}
       </div>
-      
+     
       <DataTable
         data={formattedData}
         columns={tableColumns}
         onEdit={onEdit}
         onDelete={onDelete}
+        onView={onView}
         onExport={onExport}
         onImport={onImport}
         testId={testId}
@@ -124,5 +85,7 @@ const StandardDataTable = ({
     </div>
   );
 };
-
+ 
 export default StandardDataTable;
+ 
+ 

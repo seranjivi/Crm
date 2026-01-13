@@ -7,759 +7,1053 @@ import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Switch } from './ui/switch';
+import { Slider } from './ui/slider';
 import { toast } from 'sonner';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import MultiFileUpload from './attachments/MultiFileUpload';
 import DateField from './DateField';
-import { Plus, Trash2, FileText, Upload, Calendar } from 'lucide-react';
 
-const OpportunityFormTabbed = ({ opportunity, onClose }) => {
+const OpportunityFormTabbed = ({ opportunity, onClose = null }) => {
   const [activeTab, setActiveTab] = useState('details');
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    // Details Tab
-    opportunity_name: '',
-    client_name: '',
-    lead_source: '',
-    close_date: '',
-    type: 'New Business',
-    amount: 0,
-    currency: 'USD',
-    internal_recommendation: '',
-    pipeline_status: 'Prospecting',
-    win_probability: 10,
-    next_steps: '',
-    status: 'Active',
-    
-    // RFP Details Tab
-    rfp_title: '',
-    rfp_status: '',
-    submission_deadline: '',
-    bid_manager: '',
-    submission_mode: '',
-    portal_url: '',
-    
-    // SOW Details Tab
-    sow_title: '',
-    sow_status: '',
-    contract_value: 0,
-    target_kickoff_date: '',
-    linked_proposal_reference: '',
-    scope_overview: ''
-  });
+  const [formErrors, setFormErrors] = useState({});
+  const [clients, setClients] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);  
+  const [nextStepInput, setNextStepInput] = useState('');
+  const [isSubmittingNextStep, setIsSubmittingNextStep] = useState(false);
 
-  const [rfpDocuments, setRfpDocuments] = useState({
-    rfp_document: null,
-    proposal_document: null,
-    presentation_document: null,
-    commercial_document: null,
-    other_documents: []
-  });
+  const LEAD_SOURCES = [
+    'Advertisement', 'Cold Call', 'Employee Referral', 'External Referral',
+    'Online Store', 'Partner Organization', 'Partner Individual',
+    'Public Relations', 'Sales Email Alias', 'Seminar Partner',
+    'Internal Seminar', 'Trade Show', 'Web Download', 'Web Research', 'Chat', 'Portal'
+  ];
 
-  const [sowDocuments, setSowDocuments] = useState([]);
-  const [qaClarifications, setQaClarifications] = useState([]);
+  const CURRENCIES = [
+    { code: 'USD', symbol: '$', name: 'US Dollar' },
+    { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+    { code: 'EUR', symbol: '€', name: 'Euro' },
+    { code: 'GBP', symbol: '£', name: 'British Pound' }
+  ];
 
-  // Pipeline status to win probability mapping
-  const pipelineStatusProbabilities = {
-    'Prospecting': 10,
-    'Needs Analysis': 25,
-    'Proposal': 50,
-    'Negotiation': 75,
-    'Closed': 90
-  };
+  const OPPORTUNITY_TYPES = ['New Business', 'Existing Business', 'Upsell', 'Renewal', 'Cross-sell', 'Referral'];
+  const PIPELINE_STATUSES = [
+    'Proposal Work-in-Progress',
+    'Proposal Review',
+    'Price Negotiation',
+    'Won',
+    'Lost'
+  ];
+  const RFP_STATUSES = ['Draft', 'Submitted', 'Won', 'Lost', 'In Progress'];
+  const SOW_STATUSES = ['Draft', 'In Review', 'Signed', 'Rejected'];
+  
+  const TRIAGED_OPTIONS = [
+    { value: 'Proceed', label: 'Proceed (Go)' },
+    { value: 'Hold', label: 'Hold (Neutral)' },
+    { value: 'Drop', label: 'Drop (No-Go)' }
+  ];
 
-  // Check if RFP tab should be enabled
-  const isRfpTabEnabled = () => {
-    return ['Proposal', 'Negotiation', 'Closed'].includes(formData.pipeline_status);
-  };
-
-  // Check if SOW tab should be enabled
-  const isSowTabEnabled = () => {
-    return formData.pipeline_status === 'Closed' && formData.status === 'Active';
-  };
-
-  useEffect(() => {
-    if (opportunity) {
-      setFormData({
-        ...formData,
-        opportunity_name: opportunity.opportunity_name || '',
-        client_name: opportunity.client_name || '',
-        lead_source: opportunity.lead_source || '',
-        close_date: opportunity.close_date || '',
-        type: opportunity.type || 'New Business',
-        amount: opportunity.amount || 0,
-        currency: opportunity.currency || 'USD',
-        internal_recommendation: opportunity.internal_recommendation || '',
-        pipeline_status: opportunity.pipeline_status || 'Prospecting',
-        win_probability: opportunity.win_probability || 10,
-        next_steps: opportunity.next_steps || '',
-        status: opportunity.status || 'Active'
-      });
-    }
-  }, [opportunity]);
-
-  // Update win probability when pipeline status changes
-  useEffect(() => {
-    if (pipelineStatusProbabilities[formData.pipeline_status]) {
-      setFormData(prev => ({
-        ...prev,
-        win_probability: pipelineStatusProbabilities[formData.pipeline_status]
-      }));
-    }
-  }, [formData.pipeline_status]);
-
-  const handleChange = (e) => {
-    const { name, value, type } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'number' ? parseFloat(value) || 0 : value
-    }));
-  };
-
-  const handleSelectChange = (name, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleRfpDocumentChange = (documents) => {
-    setRfpDocuments(documents);
-  };
-
-  const handleSowDocumentChange = (documents) => {
-    setSowDocuments(documents);
-  };
-
-  const addQAClarification = () => {
-    const newQA = {
-      id: `qa_${Date.now()}`,
-      question: '',
-      answer: '',
-      asked_by: '',
-      asked_date: new Date().toISOString(),
-      answered_by: '',
-      answered_date: null,
-      status: 'Pending'
+  const getWinProbability = (status) => {
+    const statusProbabilities = {
+      'Proposal Work-in-Progress': 20,
+      'Proposal Review': 40,
+      'Price Negotiation': 70,
+      'Won': 100,
+      'Lost': 0
     };
-    setQaClarifications([...qaClarifications, newQA]);
+    return statusProbabilities[status] || 0;
   };
 
-  const updateQAClarification = (index, field, value) => {
-    const updated = [...qaClarifications];
-    updated[index][field] = value;
-    if (field === 'answer' && value) {
-      updated[index].status = 'Answered';
-      updated[index].answered_date = new Date().toISOString();
+  const handlePipelineStatusChange = (status) => {
+    updateOpportunityData('pipelineStatus', status);
+    const currentWinProbability = formData.opportunity.winProbability;
+    const autoWinProbability = getWinProbability(status);
+    
+    const isAutoValue = Object.values({
+      'Proposal Work-in-Progress': 20,
+      'Proposal Review': 40,
+      'Price Negotiation': 70,
+      'Won': 100,
+      'Lost': 0
+    }).includes(currentWinProbability);
+    
+    if (isAutoValue || currentWinProbability === undefined) {
+      updateOpportunityData('winProbability', autoWinProbability);
     }
-    setQaClarifications(updated);
   };
 
-  const removeQAClarification = (index) => {
-    setQaClarifications(qaClarifications.filter((_, i) => i !== index));
+  const [formData, setFormData] = useState({
+    opportunity: {
+      opportunityName: '',
+      clientId: '',
+      clientName: '',
+      closeDate: '',
+      amount: 0,
+      currency: 'USD',
+      leadSource: '',
+      partnerOrganization: '',
+      partnerIndividual: '',
+      type: 'New Business',
+      triaged: 'Hold',
+      pipelineStatus: 'Proposal Work-in-Progress',
+      winProbability: 20,
+      nextSteps: [],
+      createdBy: ''
+    },
+    rfpDetails: {
+      rfpTitle: '',
+      rfpStatus: 'Draft',
+      submissionDeadline: '',
+      bidManager: '',
+      submissionMode: '',
+      portalUrl: '',
+      qaLogs: []
+    },
+    sowDetails: {
+      sowTitle: '',
+      sowStatus: 'Draft',
+      contractValue: 0,
+      currency: 'USD',
+      targetKickoffDate: '',
+      linkedProposalRef: '',
+      scopeOverview: ''
+    },
+    rfpDocuments: [],
+    sowDocuments: []
+  });
+
+  const updateOpportunityData = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      opportunity: {
+        ...prev.opportunity,
+        [field]: value
+      }
+    }));
+  };
+
+  const updateRfpDetails = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      rfpDetails: {
+        ...prev.rfpDetails,
+        [field]: value
+      }
+    }));
+  };
+
+  const updateSowDetails = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      sowDetails: {
+        ...prev.sowDetails,
+        [field]: value
+      }
+    }));
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    
+    // Required fields validation
+    if (!formData.opportunity.opportunityName?.trim()) {
+      errors.opportunityName = 'Opportunity name is required';
+    }
+    if (!formData.opportunity.clientId) {
+      errors.clientId = 'Client selection is required';
+    }
+    if (!formData.opportunity.closeDate) {
+      errors.closeDate = 'Close date is required';
+    }
+    if (!formData.opportunity.amount || formData.opportunity.amount <= 0) {
+      errors.amount = 'Valid amount is required';
+    }
+    if (formData.opportunity.triaged !== 'Drop' && !formData.opportunity.pipelineStatus) {
+      errors.pipelineStatus = 'Pipeline status is required';
+    }
+    
+    return errors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setFormErrors(prev => ({
+        ...prev,
+        ...validationErrors
+      }));
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    
     setLoading(true);
+    setFormErrors({});
 
     try {
-      // Create main opportunity
-      const opportunityPayload = {
-        opportunity_name: formData.opportunity_name,
-        client_name: formData.client_name,
-        lead_source: formData.lead_source,
-        close_date: formData.close_date,
-        type: formData.type,
-        amount: parseFloat(formData.amount) || 0,
-        currency: formData.currency,
-        value: parseFloat(formData.amount) || 0,
-        internal_recommendation: formData.internal_recommendation,
-        pipeline_status: formData.pipeline_status,
-        win_probability: parseInt(formData.win_probability) || 10,
-        next_steps: formData.next_steps,
-        status: formData.status
+      const isEdit = !!opportunity?.opportunityId;
+      const opportunityId = opportunity?.opportunityId;
+
+      const opportunityData = {
+        ...formData.opportunity,
+        ...(formData.opportunity.triaged === 'Drop' && { pipelineStatus: undefined })
       };
 
-      let savedOpportunity;
-      
-      if (opportunity) {
-        await api.put(`/opportunity-collections/opportunities/${opportunity.id}`, opportunityPayload);
-        savedOpportunity = { ...opportunity, ...opportunityPayload };
-        toast.success('Opportunity updated successfully');
+      let opportunityResult;
+      if (isEdit) {
+        const { id, createdAt, updatedAt, ...updateData } = opportunityData;
+        opportunityResult = await api.put(`/api/opportunities/${opportunityId}`, updateData);
       } else {
-        const response = await api.post('/opportunity-collections/opportunities', opportunityPayload);
-        savedOpportunity = response.data;
-        toast.success('Opportunity created successfully');
+        opportunityResult = await api.post('/api/opportunities', opportunityData);
       }
 
-      // Create RFP Details if tab is enabled and has data
-      if (isRfpTabEnabled() && (formData.rfp_title || formData.rfp_status)) {
-        const rfpPayload = {
-          opportunity_id: savedOpportunity.opportunity_id,
-          rfp_title: formData.rfp_title,
-          rfp_status: formData.rfp_status,
-          submission_deadline: formData.submission_deadline,
-          bid_manager: formData.bid_manager,
-          submission_mode: formData.submission_mode,
-          portal_url: formData.portal_url,
-          qa_logs: qaClarifications
-        };
+      const currentOpportunityId = opportunityId || opportunityResult.data.opportunityId;
 
-        await api.post('/opportunity-collections/rfp-details', rfpPayload);
-
-        // Upload RFP documents
-        const documentTypes = [
-          { type: 'RFP', file: rfpDocuments.rfp_document },
-          { type: 'Proposal', file: rfpDocuments.proposal_document },
-          { type: 'Presentation', file: rfpDocuments.presentation_document },
-          { type: 'Commercial', file: rfpDocuments.commercial_document }
-        ];
-
-        for (const docType of documentTypes) {
-          if (docType.file) {
-            const docPayload = {
-              opportunity_id: savedOpportunity.opportunity_id,
-              document_type: docType.type,
-              file_name: docType.file.name,
-              file_url: docType.file.url || '',
-              uploaded_by: 'current_user'
-            };
-            await api.post('/opportunity-collections/rfp-documents', docPayload);
-          }
+      if (formData.rfpDetails) {
+        const rfpEndpoint = `/api/opportunities/${currentOpportunityId}/rfp`;
+        if (formData.rfpDetails.id) {
+          const { id, createdAt, updatedAt, ...rfpUpdateData } = formData.rfpDetails;
+          await api.put(rfpEndpoint, rfpUpdateData);
+        } else {
+          await api.post(rfpEndpoint, formData.rfpDetails);
         }
       }
 
-      // Create SOW Details if tab is enabled and has data
-      if (isSowTabEnabled() && (formData.sow_title || formData.sow_status)) {
-        const sowPayload = {
-          opportunity_id: savedOpportunity.opportunity_id,
-          sow_title: formData.sow_title,
-          sow_status: formData.sow_status,
-          contract_value: parseFloat(formData.contract_value) || 0,
-          currency: formData.currency,
-          value: parseFloat(formData.contract_value) || 0,
-          target_kickoff_date: formData.target_kickoff_date,
-          linked_proposal_reference: formData.linked_proposal_reference,
-          scope_overview: formData.scope_overview
-        };
-
-        const sowResponse = await api.post('/opportunity-collections/sow-details', sowPayload);
-        const savedSow = sowResponse.data;
-
-        // Upload SOW documents
-        for (const doc of sowDocuments) {
-          const docPayload = {
-            sow_id: savedSow.id,
-            file_name: doc.name,
-            file_url: doc.url || '',
-          };
-          await api.post('/opportunity-collections/sow-documents', docPayload);
-        }
-
-        // Auto-create Project when SOW is signed
-        if (formData.sow_status === 'Signed') {
-          try {
-            const projectPayload = {
-              project_name: formData.sow_title,
-              client_name: formData.client_name,
-              opportunity_id: savedOpportunity.opportunity_id,
-              contract_value: parseFloat(formData.contract_value) || 0,
-              kickoff_date: formData.target_kickoff_date,
-              status: 'Planning',
-              created_from: 'opportunity'
-            };
-
-            await api.post('/projects', projectPayload);
-            toast.success('Project created automatically from signed SOW!');
-          } catch (projectError) {
-            console.error('Failed to create project:', projectError);
-            toast.warning('SOW created but failed to create project automatically');
-          }
+      if (formData.sowDetails) {
+        const sowEndpoint = `/api/opportunities/${currentOpportunityId}/sow`;
+        if (formData.sowDetails.id) {
+          const { id, createdAt, updatedAt, ...sowUpdateData } = formData.sowDetails;
+          await api.put(sowEndpoint, sowUpdateData);
+        } else {
+          await api.post(sowEndpoint, formData.sowDetails);
         }
       }
 
-      onClose();
+      toast.success(`Opportunity ${isEdit ? 'updated' : 'created'} successfully!`);
+      if (onClose) onClose(true);
+
     } catch (error) {
-      console.error('Opportunity form error:', error);
-      const errorDetail = error.response?.data?.detail;
-      let errorMessage = 'Failed to save opportunity';
-      
-      if (typeof errorDetail === 'string') {
-        errorMessage = errorDetail;
-      } else if (Array.isArray(errorDetail)) {
-        errorMessage = errorDetail.map(err => err.msg || err.message || JSON.stringify(err)).join(', ');
-      } else if (errorDetail && typeof errorDetail === 'object') {
-        errorMessage = JSON.stringify(errorDetail);
-      }
-      
+      console.error('Error saving opportunity:', error);
+      const errorMessage = error.response?.data?.detail || 'Failed to save opportunity';
       toast.error(errorMessage);
+      if (error.response?.data?.errors) {
+        setFormErrors(error.response.data.errors);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleClientSelect = (client) => {
+    updateOpportunityData('clientId', client._id);
+    updateOpportunityData('clientName', client.name);
+    updateOpportunityData('clientEmail', client.email || '');
+    updateOpportunityData('clientPhone', client.phone || '');
+    updateOpportunityData('clientAddress', client.address || '');
+    updateOpportunityData('clientIndustry', client.industry || '');
+    setSearchTerm(client.name);
+    setIsClientDropdownOpen(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const clientSearch = document.getElementById('clientSearch');
+      if (clientSearch && !clientSearch.contains(event.target)) {
+        setIsClientDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const response = await api.get('/api/clients', {
+          params: { search: searchTerm }
+        });
+        setClients(response.data);
+      } catch (error) {
+        console.error('Error fetching clients:', error);
+        if (!searchTerm) {
+          toast.error('Failed to load clients');
+        }
+      }
+    };
+
+    const debounceTimer = setTimeout(() => {
+      fetchClients();
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const loadOpportunityData = async () => {
+      if (opportunity?.opportunityId) {
+        try {
+          setLoading(true);
+          const response = await api.get(`/api/opportunities/${opportunity.opportunityId}`);
+          const data = response.data;
+
+          setFormData({
+            opportunity: data.opportunity || formData.opportunity,
+            rfpDetails: data.rfpDetails || formData.rfpDetails,
+            sowDetails: data.sowDetails || formData.sowDetails,
+            rfpDocuments: data.rfpDocuments || [],
+            sowDocuments: data.sowDocuments || []
+          });
+        } catch (error) {
+          console.error('Error loading opportunity:', error);
+          toast.error('Failed to load opportunity data');
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadOpportunityData();
+  }, [opportunity]);
+
+  const addNextStep = async () => {
+    if (!nextStepInput.trim()) return;
+    
+    setIsSubmittingNextStep(true);
+    try {
+      const newStep = {
+        id: Date.now().toString(),
+        description: nextStepInput.trim(),
+        createdBy: 'Current User', 
+        createdAt: new Date().toISOString(),
+        userName: 'Current User' 
+      };
+      
+      updateOpportunityData('nextSteps', [...formData.opportunity.nextSteps, newStep]);
+      setNextStepInput('');
+    } catch (error) {
+      console.error('Error adding next step:', error);
+      toast.error('Failed to add next step');
+    } finally {
+      setIsSubmittingNextStep(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+    <div className="space-y-6">
+      {Object.keys(formErrors).length > 0 && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                Please fix the following errors:
+                <ul className="list-disc pl-5 mt-1">
+                  {Object.entries(formErrors).map(([field, error]) => (
+                    <li key={field} className="text-sm">{error}</li>
+                  ))}
+                </ul>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="rfp" disabled={!isRfpTabEnabled()}>
+          <TabsTrigger value="rfp" disabled={!formData.opportunity.opportunityId && !opportunity?.opportunityId}>
             RFP Details
           </TabsTrigger>
-          <TabsTrigger value="sow" disabled={!isSowTabEnabled()}>
+          <TabsTrigger value="sow" disabled={!formData.opportunity.opportunityId && !opportunity?.opportunityId}>
             SOW Details
           </TabsTrigger>
         </TabsList>
 
-        {/* Details Tab */}
-        <TabsContent value="details" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Opportunity Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="opportunity_name">Opportunity Name *</Label>
-                  <Input
-                    id="opportunity_name"
-                    name="opportunity_name"
-                    value={formData.opportunity_name}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="client_name">Client Name *</Label>
-                  <Input
-                    id="client_name"
-                    name="client_name"
-                    value={formData.client_name}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="lead_source">Lead Source</Label>
-                  <Input
-                    id="lead_source"
-                    name="lead_source"
-                    value={formData.lead_source}
-                    onChange={handleChange}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="close_date">Close Date</Label>
-                  <DateField
-                    id="close_date"
-                    name="close_date"
-                    value={formData.close_date}
-                    onChange={handleChange}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="type">Type</Label>
-                  <Select 
-                    name="type" 
-                    value={formData.type} 
-                    onValueChange={(value) => handleSelectChange('type', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="New Business">New Business</SelectItem>
-                      <SelectItem value="Existing Business">Existing Business</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="pipeline_status">Pipeline Status</Label>
-                  <Select 
-                    name="pipeline_status" 
-                    value={formData.pipeline_status} 
-                    onValueChange={(value) => handleSelectChange('pipeline_status', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Prospecting">Prospecting</SelectItem>
-                      <SelectItem value="Needs Analysis">Needs Analysis</SelectItem>
-                      <SelectItem value="Proposal">Proposal</SelectItem>
-                      <SelectItem value="Negotiation">Negotiation</SelectItem>
-                      <SelectItem value="Closed">Closed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="amount">Amount</Label>
-                  <Input
-                    id="amount"
-                    name="amount"
-                    type="number"
-                    value={formData.amount}
-                    onChange={handleChange}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="win_probability">Win Probability (%)</Label>
-                  <Input
-                    id="win_probability"
-                    name="win_probability"
-                    type="number"
-                    value={formData.win_probability}
-                    onChange={handleChange}
-                    readOnly
-                    className="bg-gray-50"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Automatically set based on Pipeline Status
-                  </p>
-                </div>
-                
-                <div>
-                  <Label htmlFor="currency">Currency</Label>
-                  <Select 
-                    name="currency" 
-                    value={formData.currency} 
-                    onValueChange={(value) => handleSelectChange('currency', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD">USD</SelectItem>
-                      <SelectItem value="EUR">EUR</SelectItem>
-                      <SelectItem value="GBP">GBP</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="internal_recommendation">Internal Recommendation</Label>
-                  <Input
-                    id="internal_recommendation"
-                    name="internal_recommendation"
-                    value={formData.internal_recommendation}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="next_steps">Next Steps</Label>
-                <Textarea
-                  id="next_steps"
-                  name="next_steps"
-                  value={formData.next_steps}
-                  onChange={handleChange}
-                  rows={3}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* RFP Details Tab */}
-        <TabsContent value="rfp" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>RFP Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="rfp_title">RFP Title</Label>
-                  <Input
-                    id="rfp_title"
-                    name="rfp_title"
-                    value={formData.rfp_title}
-                    onChange={handleChange}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="rfp_status">RFP Status</Label>
-                  <Select 
-                    name="rfp_status" 
-                    value={formData.rfp_status} 
-                    onValueChange={(value) => handleSelectChange('rfp_status', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="Won">Won</SelectItem>
-                      <SelectItem value="Lost">Lost</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="submission_deadline">Submission Deadline</Label>
-                  <DateField
-                    id="submission_deadline"
-                    name="submission_deadline"
-                    value={formData.submission_deadline}
-                    onChange={handleChange}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="bid_manager">Bid Manager</Label>
-                  <Input
-                    id="bid_manager"
-                    name="bid_manager"
-                    value={formData.bid_manager}
-                    onChange={handleChange}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="submission_mode">Submission Mode</Label>
-                  <Select 
-                    name="submission_mode" 
-                    value={formData.submission_mode} 
-                    onValueChange={(value) => handleSelectChange('submission_mode', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Email">Email</SelectItem>
-                      <SelectItem value="Portal">Portal</SelectItem>
-                      <SelectItem value="Manual">Manual</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="portal_url">Portal URL</Label>
-                  <Input
-                    id="portal_url"
-                    name="portal_url"
-                    value={formData.portal_url}
-                    onChange={handleChange}
-                    placeholder="https://..."
-                  />
-                </div>
-              </div>
-              
-              {/* Document Uploads */}
-              <div className="space-y-4">
-                <h4 className="font-medium">Documents</h4>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <TabsContent value="details" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Opportunity Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>RFP Document</Label>
-                    <MultiFileUpload 
-                      files={rfpDocuments.rfp_document ? [rfpDocuments.rfp_document] : []} 
-                      onChange={(files) => handleRfpDocumentChange({...rfpDocuments, rfp_document: files[0]})}
-                      maxFiles={1}
-                    />
+                  <div className="md:col-span-2">
+                    <Label htmlFor="opportunityName">Opportunity Name *</Label>
+                    <div>
+                      <Input
+                        id="opportunityName"
+                        value={formData.opportunity.opportunityName}
+                        onChange={(e) => updateOpportunityData('opportunityName', e.target.value)}
+                        className={formErrors.opportunityName ? 'border-red-500' : ''}
+                        required
+                      />
+                      {formErrors.opportunityName && (
+                        <p className="mt-1 text-sm text-red-600">{formErrors.opportunityName}</p>
+                      )}
+                    </div>
                   </div>
-                  
-                  <div>
-                    <Label>Proposal Document</Label>
-                    <MultiFileUpload 
-                      files={rfpDocuments.proposal_document ? [rfpDocuments.proposal_document] : []} 
-                      onChange={(files) => handleRfpDocumentChange({...rfpDocuments, proposal_document: files[0]})}
-                      maxFiles={1}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label>Presentation Document</Label>
-                    <MultiFileUpload 
-                      files={rfpDocuments.presentation_document ? [rfpDocuments.presentation_document] : []} 
-                      onChange={(files) => handleRfpDocumentChange({...rfpDocuments, presentation_document: files[0]})}
-                      maxFiles={1}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label>Commercial Document</Label>
-                    <MultiFileUpload 
-                      files={rfpDocuments.commercial_document ? [rfpDocuments.commercial_document] : []} 
-                      onChange={(files) => handleRfpDocumentChange({...rfpDocuments, commercial_document: files[0]})}
-                      maxFiles={1}
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              {/* Q&A Clarifications */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-medium">Q&A / Clarifications</h4>
-                  <Button type="button" variant="outline" size="sm" onClick={addQAClarification}>
-                    <Plus className="h-4 w-4 mr-1" /> Add Q&A
-                  </Button>
-                </div>
-                
-                {qaClarifications.map((qa, index) => (
-                  <Card key={qa.id} className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1 space-y-3">
+
+                  <div className="relative">
+                    <Label htmlFor="clientSearch">Client *</Label>
+                    <div className="relative">
+                      {formErrors.clientId && (
+                        <p className="text-sm text-red-600 mb-1">{formErrors.clientId}</p>
+                      )}
+                      <Input
+                        id="clientSearch"
+                        value={searchTerm}
+                        onChange={(e) => {
+                          setSearchTerm(e.target.value);
+                          setIsClientDropdownOpen(true);
+                        }}
+                        onFocus={() => setIsClientDropdownOpen(true)}
+                        placeholder="Search clients..."
+                        className="w-full"
+                        required
+                      />
+                      {isClientDropdownOpen && clients.length > 0 && (
+                        <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">
+                          {clients.map(client => (
+                            <div
+                              key={client._id}
+                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                              onClick={() => handleClientSelect(client)}
+                            >
+                              <div className="font-medium">{client.name}</div>
+                              <div className="text-sm text-gray-500">
+                                {client.email} • {client.phone}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {formData.opportunity.clientId && (
+                      <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                        <div className="grid grid-cols-2 gap-2 text-sm">
                           <div>
-                            <Label>Question</Label>
-                            <Textarea
-                              value={qa.question}
-                              onChange={(e) => updateQAClarification(index, 'question', e.target.value)}
-                              rows={2}
-                            />
+                            <span className="text-gray-500">Email:</span> {formData.opportunity.clientEmail || 'N/A'}
                           </div>
                           <div>
-                            <Label>Answer</Label>
-                            <Textarea
-                              value={qa.answer}
-                              onChange={(e) => updateQAClarification(index, 'answer', e.target.value)}
-                              rows={2}
-                            />
+                            <span className="text-gray-500">Phone:</span> {formData.opportunity.clientPhone || 'N/A'}
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-gray-500">Address:</span> {formData.opportunity.clientAddress || 'N/A'}
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Industry:</span> {formData.opportunity.clientIndustry || 'N/A'}
                           </div>
                         </div>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => removeQAClarification(index)}
-                          className="ml-2"
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div>
+                      <Label>Close Date *</Label>
+                      {formErrors.closeDate && (
+                        <p className="text-sm text-red-600 mb-1">{formErrors.closeDate}</p>
+                      )}
+                      <DateField
+                        selected={formData.opportunity.closeDate ? new Date(formData.opportunity.closeDate) : null}
+                        onChange={(date) => updateOpportunityData('closeDate', date)}
+                        minDate={new Date()}
+                        placeholderText="Select close date"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div>
+                      <Label htmlFor="amount">Amount *</Label>
+                      {formErrors.amount && (
+                        <p className="text-sm text-red-600 mb-1">{formErrors.amount}</p>
+                      )}
+                      <div className="flex">
+                        <Select
+                          value={formData.opportunity.currency}
+                          onValueChange={(value) => updateOpportunityData('currency', value)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <SelectTrigger className="w-[120px] rounded-r-none border-r-0">
+                            <SelectValue placeholder="Currency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CURRENCIES.map((currency) => (
+                              <SelectItem key={currency.code} value={currency.code}>
+                                {currency.code} ({currency.symbol})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formData.opportunity.amount}
+                          onChange={(e) => updateOpportunityData('amount', parseFloat(e.target.value) || 0)}
+                          placeholder="0.00"
+                          className="rounded-l-none"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Type */}
+                  <div>
+                    <Label htmlFor="type">Type *</Label>
+                    <Select
+                      value={formData.opportunity.type}
+                      onValueChange={(value) => updateOpportunityData('type', value)}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="New Business">New Business</SelectItem>
+                        <SelectItem value="Existing Business">Existing Business</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Lead Source */}
+                  <div>
+                    <Label htmlFor="leadSource">Lead Source *</Label>
+                    <Select
+                      value={formData.opportunity.leadSource}
+                      onValueChange={(value) => updateOpportunityData('leadSource', value)}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select lead source" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LEAD_SOURCES.map((source) => (
+                          <SelectItem key={source} value={source}>
+                            {source}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Partner Organization (Conditional) */}
+                  {formData.opportunity.leadSource === 'Partner Organization' && (
+                    <div>
+                      <Label htmlFor="partnerOrganization">Partner Organization *</Label>
+                      <Input
+                        id="partnerOrganization"
+                        value={formData.opportunity.partnerOrganization}
+                        onChange={(e) => updateOpportunityData('partnerOrganization', e.target.value)}
+                        placeholder="Enter partner organization name"
+                        required
+                      />
+                    </div>
+                  )}
+
+                  {/* Partner Individual (Conditional) */}
+                  {formData.opportunity.leadSource === 'Partner Individual' && (
+                    <div>
+                      <Label htmlFor="partnerIndividual">Partner Name *</Label>
+                      <Input
+                        id="partnerIndividual"
+                        value={formData.opportunity.partnerIndividual}
+                        onChange={(e) => updateOpportunityData('partnerIndividual', e.target.value)}
+                        placeholder="Enter partner name"
+                        required
+                      />
+                    </div>
+                  )}
+
+                  {/* Triaged */}
+                  <div>
+                    <Label htmlFor="triaged">Triaged *</Label>
+                    <Select
+                      value={formData.opportunity.triaged}
+                      onValueChange={(value) => {
+                        updateOpportunityData('triaged', value);
+                        if (value === 'Drop') {
+                          updateOpportunityData('pipelineStatus', '');
+                        } else if (!formData.opportunity.pipelineStatus) {
+                          const defaultStatus = 'Proposal Work-in-Progress';
+                          updateOpportunityData('pipelineStatus', defaultStatus);
+                          updateOpportunityData('winProbability', getWinProbability(defaultStatus));
+                        }
+                      }}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select triage status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TRIAGED_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Pipeline Status - Only show if not 'Drop' */}
+                  {formData.opportunity.triaged !== 'Drop' && (
+                    <div>
+                      <Label htmlFor="pipelineStatus">Pipeline Status *</Label>
+                      {formErrors.pipelineStatus && (
+                        <p className="text-sm text-red-600 mb-1">{formErrors.pipelineStatus}</p>
+                      )}
+                      <Select
+                        value={formData.opportunity.pipelineStatus}
+                        onValueChange={(status) => {
+                          updateOpportunityData('pipelineStatus', status);
+                          const newWinProbability = getWinProbability(status);
+                          updateOpportunityData('winProbability', newWinProbability);
+                        }}
+                        required
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PIPELINE_STATUSES.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {status}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Win Probability - Only show if not 'Drop' */}
+                  {formData.opportunity.triaged !== 'Drop' && (
+                    <div className="md:col-span-2">
+                      <div className="flex justify-between items-center mb-2">
+                        <Label htmlFor="winProbability">
+                          Win Probability: {formData.opportunity.winProbability}%
+                        </Label>
+                        <div className="text-sm text-muted-foreground">
+                          {formData.opportunity.pipelineStatus && (
+                            <span className="text-xs text-muted-foreground">
+                              Auto: {getWinProbability(formData.opportunity.pipelineStatus)}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Slider
+                        id="winProbability"
+                        min={0}
+                        max={100}
+                        step={10}
+                        value={[formData.opportunity.winProbability || 0]}
+                        onValueChange={([value]) => updateOpportunityData('winProbability', value)}
+                        className="w-full"
+                        disabled={['Won', 'Lost'].includes(formData.opportunity.pipelineStatus)}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                        <span>0%</span>
+                        <span>100%</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Next Steps */}
+                  <div className="md:col-span-2 space-y-4">
+                    <div>
+                      <Label>Add Next Step</Label>
+                      <div className="flex space-x-2 mt-1">
+                        <Input
+                          value={nextStepInput}
+                          onChange={(e) => setNextStepInput(e.target.value)}
+                          placeholder="Add a next step..."
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              addNextStep();
+                            }
+                          }}
+                        />
+                        <Button 
+                          type="button"
+                          onClick={addNextStep}
+                          disabled={!nextStepInput.trim() || isSubmittingNextStep}
+                        >
+                          {isSubmittingNextStep ? 'Adding...' : 'Add'}
                         </Button>
                       </div>
                     </div>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        {/* SOW Details Tab */}
-        <TabsContent value="sow" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>SOW Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="sow_title">SOW Title / Release Version</Label>
-                  <Input
-                    id="sow_title"
-                    name="sow_title"
-                    value={formData.sow_title}
-                    onChange={handleChange}
-                  />
+                    {/* Next Steps List */}
+                    <div className="space-y-4 mt-4">
+                      {formData.opportunity.nextSteps
+                        .slice()
+                        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                        .map((step) => (
+                          <div 
+                            key={step.id} 
+                            className="p-4 border rounded-lg bg-white shadow-sm hover:shadow transition-shadow"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="space-y-1">
+                                <div className="font-semibold text-sm">
+                                  {step.userName || 'User'}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {formatDate(step.createdAt)}
+                                </div>
+                                <p className="text-sm mt-1">
+                                  {step.description}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      
+                      {formData.opportunity.nextSteps.length === 0 && (
+                        <div className="text-center py-4 text-muted-foreground text-sm">
+                          No next steps added yet. Add one above.
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                
-                <div>
-                  <Label htmlFor="sow_status">SOW Status</Label>
-                  <Select 
-                    name="sow_status" 
-                    value={formData.sow_status} 
-                    onValueChange={(value) => handleSelectChange('sow_status', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Draft">Draft</SelectItem>
-                      <SelectItem value="Review">Review</SelectItem>
-                      <SelectItem value="Signed">Signed</SelectItem>
-                    </SelectContent>
-                  </Select>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* RFP Details Tab */}
+          <TabsContent value="rfp" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>RFP Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* RFP Title */}
+                  <div className="md:col-span-2">
+                    <Label htmlFor="rfpTitle">RFP Title</Label>
+                    <Input
+                      id="rfpTitle"
+                      value={formData.rfpDetails.rfpTitle}
+                      onChange={(e) => updateRfpDetails('rfpTitle', e.target.value)}
+                    />
+                  </div>
+
+                  {/* RFP Status */}
+                  <div>
+                    <Label htmlFor="rfpStatus">Status</Label>
+                    <Select
+                      value={formData.rfpDetails.rfpStatus}
+                      onValueChange={(value) => updateRfpDetails('rfpStatus', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RFP_STATUSES.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Submission Deadline */}
+                  <div>
+                    <Label>Submission Deadline</Label>
+                    <DateField
+                      selected={formData.rfpDetails.submissionDeadline ? new Date(formData.rfpDetails.submissionDeadline) : null}
+                      onChange={(date) => updateRfpDetails('submissionDeadline', date)}
+                      minDate={new Date()}
+                      placeholderText="Select deadline"
+                      showTimeSelect
+                      timeFormat="HH:mm"
+                      timeIntervals={15}
+                      dateFormat="MMMM d, yyyy h:mm aa"
+                    />
+                  </div>
+
+                  {/* Bid Manager */}
+                  <div>
+                    <Label htmlFor="bidManager">Bid Manager</Label>
+                    <Input
+                      id="bidManager"
+                      value={formData.rfpDetails.bidManager}
+                      onChange={(e) => updateRfpDetails('bidManager', e.target.value)}
+                    />
+                  </div>
+
+                  {/* Submission Mode */}
+                  <div>
+                    <Label htmlFor="submissionMode">Submission Mode</Label>
+                    <Input
+                      id="submissionMode"
+                      value={formData.rfpDetails.submissionMode}
+                      onChange={(e) => updateRfpDetails('submissionMode', e.target.value)}
+                      placeholder="e.g., Email, Portal, etc."
+                    />
+                  </div>
+
+                  {/* Portal URL */}
+                  <div>
+                    <Label htmlFor="portalUrl">Portal URL</Label>
+                    <Input
+                      id="portalUrl"
+                      type="url"
+                      value={formData.rfpDetails.portalUrl}
+                      onChange={(e) => updateRfpDetails('portalUrl', e.target.value)}
+                      placeholder="https://"
+                    />
+                  </div>
+
+                  {/* Q&A Logs */}
+                  <div className="md:col-span-2">
+                    <Label>Q&A Log</Label>
+                    <div className="space-y-2">
+                      {formData.rfpDetails.qaLogs?.map((qa, index) => (
+                        <div key={qa.id || index} className="p-4 border rounded-lg">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-2 flex-1">
+                              <div className="font-medium">{qa.question}</div>
+                              {qa.answer && (
+                                <div className="text-sm text-muted-foreground">
+                                  <span className="font-medium">Answer:</span> {qa.answer}
+                                </div>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                const newQaLogs = formData.rfpDetails.qaLogs.filter((_, i) => i !== index);
+                                updateRfpDetails('qaLogs', newQaLogs);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-2">
+                            Asked by {qa.askedBy} on {new Date(qa.askedAt).toLocaleString()}
+                            {qa.answeredBy && (
+                              <>
+                                <br />
+                                Answered by {qa.answeredBy} on {new Date(qa.answeredAt).toLocaleString()}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2"
+                        onClick={() => {
+                          const newQa = {
+                            id: Date.now().toString(),
+                            question: '',
+                            askedBy: 'current_user',
+                            askedAt: new Date().toISOString()
+                          };
+                          updateRfpDetails('qaLogs', [...(formData.rfpDetails.qaLogs || []), newQa]);
+                        }}
+                      >
+                        <Plus className="mr-2 h-4 w-4" /> Add Q&A
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                
-                <div>
-                  <Label htmlFor="contract_value">Contract Value</Label>
-                  <Input
-                    id="contract_value"
-                    name="contract_value"
-                    type="number"
-                    value={formData.contract_value}
-                    onChange={handleChange}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="target_kickoff_date">Target Kickoff Date</Label>
-                  <DateField
-                    id="target_kickoff_date"
-                    name="target_kickoff_date"
-                    value={formData.target_kickoff_date}
-                    onChange={handleChange}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="linked_proposal_reference">Linked Proposal Reference</Label>
-                  <Input
-                    id="linked_proposal_reference"
-                    name="linked_proposal_reference"
-                    value={formData.linked_proposal_reference}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="scope_overview">Scope Overview</Label>
-                <Textarea
-                  id="scope_overview"
-                  name="scope_overview"
-                  value={formData.scope_overview}
-                  onChange={handleChange}
-                  rows={4}
+              </CardContent>
+            </Card>
+
+            {/* RFP Documents */}
+            <Card>
+              <CardHeader>
+                <CardTitle>RFP Documents</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <MultiFileUpload
+                  files={formData.rfpDocuments}
+                  onFilesChange={(files) => setFormData(prev => ({ ...prev, rfpDocuments: files }))}
+                  allowedTypes={['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']}
+                  maxSize={10 * 1024 * 1024} // 10MB
                 />
-              </div>
-              
-              {/* Signed Document Assets */}
-              <div className="space-y-4">
-                <h4 className="font-medium">Signed Document Assets</h4>
-                <MultiFileUpload 
-                  files={sowDocuments} 
-                  onChange={handleSowDocumentChange}
-                />
-              </div>
-              
-              {formData.sow_status === 'Signed' && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm text-blue-800">
-                    <strong>Note:</strong> When you save this form with SOW Status set to "Signed", 
-                    a new Project will be automatically created in the Delivery module.
-                  </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* SOW Details Tab */}
+          <TabsContent value="sow" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Statement of Work Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* SOW Title */}
+                  <div className="md:col-span-2">
+                    <Label htmlFor="sowTitle">SOW Title</Label>
+                    <Input
+                      id="sowTitle"
+                      value={formData.sowDetails.sowTitle}
+                      onChange={(e) => updateSowDetails('sowTitle', e.target.value)}
+                    />
+                  </div>
+
+                  {/* SOW Status */}
+                  <div>
+                    <Label htmlFor="sowStatus">Status</Label>
+                    <Select
+                      value={formData.sowDetails.sowStatus}
+                      onValueChange={(value) => updateSowDetails('sowStatus', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SOW_STATUSES.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Contract Value */}
+                  <div>
+                    <Label>Contract Value</Label>
+                    <div className="flex">
+                      <Select
+                        value={formData.sowDetails.currency || 'USD'}
+                        onValueChange={(value) => updateSowDetails('currency', value)}
+                      >
+                        <SelectTrigger className="w-[120px] rounded-r-none border-r-0">
+                          <SelectValue placeholder="Currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CURRENCIES.map((currency) => (
+                            <SelectItem key={currency.code} value={currency.code}>
+                              {currency.code} ({currency.symbol})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.sowDetails.contractValue || ''}
+                        onChange={(e) => updateSowDetails('contractValue', parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
+                        className="rounded-l-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Target Kickoff Date */}
+                  <div>
+                    <Label>Target Kickoff Date</Label>
+                    <DateField
+                      selected={formData.sowDetails.targetKickoffDate ? new Date(formData.sowDetails.targetKickoffDate) : null}
+                      onChange={(date) => updateSowDetails('targetKickoffDate', date)}
+                      minDate={new Date()}
+                      placeholderText="Select kickoff date"
+                      showTimeSelect
+                      timeFormat="HH:mm"
+                      timeIntervals={15}
+                      dateFormat="MMMM d, yyyy h:mm aa"
+                    />
+                  </div>
+
+                  {/* Linked Proposal Reference */}
+                  <div className="md:col-span-2">
+                    <Label htmlFor="linkedProposalRef">Linked Proposal Reference</Label>
+                    <Input
+                      id="linkedProposalRef"
+                      value={formData.sowDetails.linkedProposalRef}
+                      onChange={(e) => updateSowDetails('linkedProposalRef', e.target.value)}
+                      placeholder="Reference ID or name of the linked proposal"
+                    />
+                  </div>
+
+                  {/* Scope Overview */}
+                  <div className="md:col-span-2">
+                    <Label htmlFor="scopeOverview">Scope Overview</Label>
+                    <Textarea
+                      id="scopeOverview"
+                      value={formData.sowDetails.scopeOverview}
+                      onChange={(e) => updateSowDetails('scopeOverview', e.target.value)}
+                      placeholder="Brief overview of the project scope, deliverables, and timeline"
+                      rows={4}
+                    />
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* SOW Documents */}
+            <Card>
+              <CardHeader>
+                <CardTitle>SOW Documents</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <MultiFileUpload
+                  files={formData.sowDocuments}
+                  onFilesChange={(files) => setFormData(prev => ({ ...prev, sowDocuments: files }))}
+                  allowedTypes={['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']}
+                  maxSize={10 * 1024 * 1024} // 10MB
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Form Actions */}
+          <div className="flex justify-end space-x-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {opportunity ? 'Updating...' : 'Creating...'}
+                </>
+              ) : (
+                <>{opportunity ? 'Update Opportunity' : 'Create Opportunity'}</>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </Button>
+          </div>
+        </form>
       </Tabs>
-
-      {/* Form Actions */}
-      <div className="flex justify-end gap-2 pt-4">
-        <Button type="button" variant="outline" onClick={onClose}>
-          Discard
-        </Button>
-        <Button
-          type="submit"
-          disabled={loading}
-          className="bg-[#0A2A43] hover:bg-[#0A2A43]/90"
-        >
-          {loading ? 'Saving...' : 'Save Changes'}
-        </Button>
-      </div>
-    </form>
+    </div>
   );
 };
 

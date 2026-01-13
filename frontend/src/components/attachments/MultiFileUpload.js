@@ -2,10 +2,10 @@ import React, { useRef } from 'react';
 import { Button } from '../ui/button';
 import { Upload, X, FileText, Image, File } from 'lucide-react';
 import { toast } from 'sonner';
-
+ 
 const MultiFileUpload = ({ files, onChange, maxSizePerFile = 10 }) => {
   const fileInputRef = useRef(null);
-
+ 
   const ACCEPTED_TYPES = {
     'application/pdf': '.pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
@@ -13,45 +13,46 @@ const MultiFileUpload = ({ files, onChange, maxSizePerFile = 10 }) => {
     'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
     'image/png': '.png',
     'image/jpeg': '.jpg',
-    'text/plain': '.txt'
+    'text/plain': '.txt',
+    'text/csv': '.csv'
   };
-
+ 
   const handleFileSelect = (event) => {
     const selectedFiles = Array.from(event.target.files);
     const validFiles = [];
     const maxSize = maxSizePerFile * 1024 * 1024; // Convert to bytes
-
+ 
     for (const file of selectedFiles) {
       // Check file type
       if (!Object.keys(ACCEPTED_TYPES).includes(file.type)) {
-        toast.error(`${file.name}: Invalid file type. Only PDF, DOCX, XLSX, PPTX, PNG, JPG, TXT allowed.`);
+        toast.error(`${file.name}: Invalid file type. Only PDF, DOCX, XLSX, PPTX, PNG, JPG, TXT, CSV allowed.`);
         continue;
       }
-
+ 
       // Check file size
       if (file.size > maxSize) {
         toast.error(`${file.name}: File too large. Max size is ${maxSizePerFile}MB.`);
         continue;
       }
-
+ 
       validFiles.push(file);
     }
-
+ 
     if (validFiles.length > 0) {
       onChange([...files, ...validFiles]);
       toast.success(`${validFiles.length} file(s) added successfully`);
     }
-
+ 
     // Reset input
     event.target.value = '';
   };
-
+ 
   const handleRemoveFile = (index) => {
     const newFiles = files.filter((_, i) => i !== index);
     onChange(newFiles);
     toast.success('File removed');
   };
-
+ 
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -59,17 +60,17 @@ const MultiFileUpload = ({ files, onChange, maxSizePerFile = 10 }) => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
-
+ 
   const getFileIcon = (fileType) => {
     if (fileType.startsWith('image/')) return <Image className="h-4 w-4 text-blue-500" />;
     if (fileType === 'application/pdf') return <FileText className="h-4 w-4 text-red-500" />;
     return <File className="h-4 w-4 text-slate-500" />;
   };
-
+ 
   return (
     <div className="space-y-3">
       {/* Upload Button */}
-      <div>
+      <div className="flex flex-col items-center">
         <input
           ref={fileInputRef}
           type="file"
@@ -83,16 +84,16 @@ const MultiFileUpload = ({ files, onChange, maxSizePerFile = 10 }) => {
           variant="outline"
           size="sm"
           onClick={() => fileInputRef.current?.click()}
-          className="h-8 text-xs"
+          className="h-8 text-xs mx-auto"
         >
           <Upload className="h-3.5 w-3.5 mr-1.5" />
           Choose Files
         </Button>
-        <p className="text-xs text-slate-500 mt-1">
-          PDF, DOCX, XLSX, PPTX, PNG, JPG, TXT • Max {maxSizePerFile}MB per file
+        <p className="text-xs text-slate-500 mt-1 text-center">
+          PDF, DOCX, XLSX, PPTX, PNG, JPG, TXT, CSV • Max {maxSizePerFile}MB per file
         </p>
       </div>
-
+ 
       {/* File List */}
       {files.length > 0 && (
         <div className="space-y-2">
@@ -133,5 +134,6 @@ const MultiFileUpload = ({ files, onChange, maxSizePerFile = 10 }) => {
     </div>
   );
 };
-
+ 
 export default MultiFileUpload;
+ 

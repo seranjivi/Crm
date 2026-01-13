@@ -10,8 +10,8 @@ import DateField from './DateField';
 import RegionDropdown from './RegionDropdown';
 import CountryDropdown from './CountryDropdown';
 import { Plus, Trash2, Building2, X } from 'lucide-react';
-
-const ClientForm = ({ client, onClose }) => {
+ 
+const ClientForm = ({ client, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     client_name: '',
     contact_email: '',
@@ -27,7 +27,7 @@ const ClientForm = ({ client, onClose }) => {
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-
+ 
   useEffect(() => {
     if (client) {
       setFormData({
@@ -37,19 +37,19 @@ const ClientForm = ({ client, onClose }) => {
         industry: client.industry || '',
         customer_type: client.customer_type || 'Direct Customer',
         gst_tax_id: client.gst_tax_id || '',
-        addresses: client.addresses && client.addresses.length > 0 
-          ? client.addresses 
+        addresses: client.addresses && client.addresses.length > 0
+          ? client.addresses
           : [{ address: '', country: '', region: '' }],
         account_owner: client.account_owner || '',
         client_status: client.client_status || 'Active',
         notes: client.notes || '',
-        contact_persons: client.contact_persons && client.contact_persons.length > 0 
-          ? client.contact_persons 
+        contact_persons: client.contact_persons && client.contact_persons.length > 0
+          ? client.contact_persons
           : [{ name: '', email: '', phone: '', designation: '', is_primary: false }]
       });
     }
   }, [client]);
-
+ 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -58,10 +58,10 @@ const ClientForm = ({ client, onClose }) => {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
-
+ 
   const handleContactChange = (index, field, value) => {
     const updatedContacts = [...formData.contact_persons];
-    
+   
     if (field === 'is_primary') {
       // If setting as primary, uncheck all others
       if (value) {
@@ -81,16 +81,16 @@ const ClientForm = ({ client, onClose }) => {
     } else {
       updatedContacts[index][field] = value;
     }
-    
+   
     setFormData(prev => ({ ...prev, contact_persons: updatedContacts }));
   };
-
+ 
   const handleAddressChange = (index, field, value) => {
     const updatedAddresses = [...formData.addresses];
     updatedAddresses[index][field] = value;
     setFormData(prev => ({ ...prev, addresses: updatedAddresses }));
   };
-
+ 
   const setPrimaryAddress = (index) => {
     const updatedAddresses = formData.addresses.map((addr, i) => ({
       ...addr,
@@ -98,12 +98,12 @@ const ClientForm = ({ client, onClose }) => {
     }));
     setFormData(prev => ({ ...prev, addresses: updatedAddresses }));
   };
-
+ 
   const addAddress = () => {
     setFormData(prev => {
-      const newAddress = { 
-        address: '', 
-        country: '', 
+      const newAddress = {
+        address: '',
+        country: '',
         region: '',
         is_primary: prev.addresses.length === 0 // First address is primary by default
       };
@@ -113,52 +113,52 @@ const ClientForm = ({ client, onClose }) => {
       };
     });
   };
-
+ 
   const removeAddress = (index) => {
     if (formData.addresses.length > 1) {
       const updatedAddresses = formData.addresses.filter((_, i) => i !== index);
       setFormData(prev => ({ ...prev, addresses: updatedAddresses }));
     }
   };
-
+ 
   const addContact = () => {
     setFormData(prev => ({
       ...prev,
       contact_persons: [...prev.contact_persons, { name: '', email: '', phone: '', designation: '', is_primary: false }]
     }));
   };
-
+ 
   const removeContact = (index) => {
     if (formData.contact_persons.length > 1) {
       const updatedContacts = formData.contact_persons.filter((_, i) => i !== index);
       setFormData(prev => ({ ...prev, contact_persons: updatedContacts }));
     }
   };
-
+ 
   const validateForm = () => {
     const newErrors = {};
-    
+   
     if (!formData.client_name.trim()) {
       newErrors.client_name = 'Client name is required';
     }
-    
+   
     if (!formData.contact_email.trim()) {
       newErrors.contact_email = 'Primary email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contact_email)) {
       newErrors.contact_email = 'Please enter a valid email';
     }
-    
+   
     if (!formData.customer_type) {
       newErrors.customer_type = 'Customer type is required';
     }
-    
+   
     // Validate addresses
     let hasAtLeastOneAddress = false;
     formData.addresses.forEach((address, index) => {
       if (address.country) {
         hasAtLeastOneAddress = true;
       }
-      
+     
       if (!address.address) {
         newErrors[`address_${index}`] = 'Address is required';
       }
@@ -169,33 +169,33 @@ const ClientForm = ({ client, onClose }) => {
         newErrors[`country_${index}`] = 'Country is required';
       }
     });
-    
+   
     if (!hasAtLeastOneAddress) {
       newErrors.addresses = 'At least one address with country is required';
     }
-    
+   
     if (!formData.account_owner) {
       newErrors.account_owner = 'Account owner is required';
     }
-    
+   
     if (!formData.client_status) {
       newErrors.client_status = 'Status is required';
     }
-    
+   
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
+ 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+   
     if (!validateForm()) {
       toast.error('Please fill in all required fields');
       return;
     }
-    
+   
     setLoading(true);
-
+ 
     try {
       const submitData = {
         ...formData,
@@ -204,15 +204,15 @@ const ClientForm = ({ client, onClose }) => {
         country: formData.addresses[0]?.country || '',
         region: formData.addresses[0]?.region || '',
         // Keep primary email as contact_email for backward compatibility
-        contact_persons: formData.contact_persons.filter(contact => 
+        contact_persons: formData.contact_persons.filter(contact =>
           contact.name || contact.email || contact.phone
         ),
         // Include all addresses
-        addresses: formData.addresses.filter(addr => 
+        addresses: formData.addresses.filter(addr =>
           addr.address || addr.country || addr.region
         )
       };
-
+ 
       if (client) {
         await api.put(`/clients/${client.id}`, submitData);
         toast.success('Client updated successfully');
@@ -220,7 +220,13 @@ const ClientForm = ({ client, onClose }) => {
         await api.post('/clients', submitData);
         toast.success('Client created successfully');
       }
-      onClose();
+     
+      // Call onSuccess if provided, otherwise just close the form
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        onClose(true);
+      }
     } catch (error) {
       console.error('Client form error:', error);
       toast.error(error.response?.data?.detail || 'Failed to save client');
@@ -228,35 +234,32 @@ const ClientForm = ({ client, onClose }) => {
       setLoading(false);
     }
   };
-
+ 
   return (
     <div className="w-full max-w-4xl mx-auto p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Building2 className="w-6 h-6 text-[#0A2A43]" />
-          <h2 className="text-2xl font-semibold text-[#0A2A43]">
-            {client ? 'EDIT CLIENT' : 'NEW CLIENT'}
-          </h2>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          <X className="w-5 h-5" />
-        </Button>
-      </div>
-
       <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-3">
+            <Building2 className="w-6 h-6 text-[#0A2A43]" />
+            <h2 className="text-2xl font-semibold text-[#0A2A43]">
+              {client ? 'EDIT CLIENT' : 'NEW CLIENT'}
+            </h2>
+          </div>
+          {/* <Button
+            type="submit"
+            disabled={loading}
+            className="bg-[#0A2A43] hover:bg-[#0A2A43]/90 text-white"
+          >
+            {loading ? 'Saving...' : (client ? 'Update Client' : 'Create Client')}
+          </Button> */}
+        </div>
         {/* Section 1 - Basic Client Details */}
         <div>
           <h3 className="text-lg font-medium text-[#0A2A43] mb-4">Basic Client Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="client_name">Client Name *</Label>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="client_name">Client Name <span className="text-red-500">*</span></Label>
               <Input
                 id="client_name"
                 name="client_name"
@@ -269,8 +272,8 @@ const ClientForm = ({ client, onClose }) => {
                 <p className="text-red-500 text-sm mt-1">{errors.client_name}</p>
               )}
             </div>
-            <div>
-              <Label htmlFor="contact_email">Email *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="contact_email">Email <span className="text-red-500">*</span></Label>
               <Input
                 id="contact_email"
                 name="contact_email"
@@ -284,7 +287,7 @@ const ClientForm = ({ client, onClose }) => {
                 <p className="text-red-500 text-sm mt-1">{errors.contact_email}</p>
               )}
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="website">Website</Label>
               <Input
                 id="website"
@@ -296,7 +299,7 @@ const ClientForm = ({ client, onClose }) => {
                 data-testid="client-website-input"
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="industry">Industry</Label>
               <Select
                 value={formData.industry}
@@ -327,8 +330,8 @@ const ClientForm = ({ client, onClose }) => {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label htmlFor="customer_type">Customer Type *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="customer_type">Customer Type <span className="text-red-500">*</span></Label>
               <Select
                 value={formData.customer_type}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, customer_type: value }))}
@@ -347,7 +350,7 @@ const ClientForm = ({ client, onClose }) => {
                 <p className="text-red-500 text-sm mt-1">{errors.customer_type}</p>
               )}
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="gst_tax_id">GST / Tax ID</Label>
               <Input
                 id="gst_tax_id"
@@ -360,14 +363,25 @@ const ClientForm = ({ client, onClose }) => {
             </div>
           </div>
         </div>
-
+ 
         {/* Section 2 - Contact Persons */}
         <div>
-          <h3 className="text-lg font-medium text-[#0A2A43] mb-4">Contact Persons</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium text-[#0A2A43]">Contact Persons</h3>
+            <Button
+              type="button"
+              onClick={addContact}
+              className="flex items-center gap-2 h-10 bg-[#0A2A43] hover:bg-[#0A2A43]/90 text-white"
+              data-testid="add-contact-button"
+            >
+              <Plus className="w-4 h-4" />
+              Add Contact
+            </Button>
+          </div>
           <div className="space-y-4">
             {formData.contact_persons.map((contact, index) => (
-              <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-start">
-                <div>
+              <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                <div className="md:col-span-3 space-y-2">
                   <Label htmlFor={`contact_name_${index}`}>Name</Label>
                   <Input
                     id={`contact_name_${index}`}
@@ -375,9 +389,10 @@ const ClientForm = ({ client, onClose }) => {
                     onChange={(e) => handleContactChange(index, 'name', e.target.value)}
                     placeholder="Contact name"
                     data-testid={`contact-name-${index}`}
+                    className="w-full h-10"
                   />
                 </div>
-                <div>
+                <div className="md:col-span-3 space-y-2">
                   <Label htmlFor={`contact_email_${index}`}>Email</Label>
                   <Input
                     id={`contact_email_${index}`}
@@ -386,9 +401,10 @@ const ClientForm = ({ client, onClose }) => {
                     onChange={(e) => handleContactChange(index, 'email', e.target.value)}
                     placeholder="contact@example.com"
                     data-testid={`contact-email-${index}`}
+                    className="w-full h-10"
                   />
                 </div>
-                <div>
+                <div className="md:col-span-3 space-y-2">
                   <Label htmlFor={`contact_phone_${index}`}>Phone</Label>
                   <Input
                     id={`contact_phone_${index}`}
@@ -397,70 +413,50 @@ const ClientForm = ({ client, onClose }) => {
                     onChange={(e) => handleContactChange(index, 'phone', e.target.value)}
                     placeholder="+1 234 567 8900"
                     data-testid={`contact-phone-${index}`}
+                    className="w-full h-10"
                   />
                 </div>
-                <div>
+                <div className="md:col-span-3 space-y-2">
                   <Label htmlFor={`contact_designation_${index}`}>Designation</Label>
-                  <Input
-                    id={`contact_designation_${index}`}
-                    value={contact.designation}
-                    onChange={(e) => handleContactChange(index, 'designation', e.target.value)}
-                    placeholder="e.g. Manager, Director"
-                    data-testid={`contact-designation-${index}`}
-                  />
-                </div>
-                <div className="flex items-end">
-                  <div className="flex items-center space-x-2 mt-6">
-                    <input
-                      type="checkbox"
-                      id={`primary_contact_${index}`}
-                      checked={contact.is_primary}
-                      onChange={(e) => handleContactChange(index, 'is_primary', e.target.checked)}
-                      data-testid={`primary-contact-${index}`}
-                    />
-                    <Label htmlFor={`primary_contact_${index}`} className="text-sm">
-                      Primary Contact
-                    </Label>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Input
+                        id={`contact_designation_${index}`}
+                        value={contact.designation}
+                        onChange={(e) => handleContactChange(index, 'designation', e.target.value)}
+                        placeholder="e.g. Manager, Director"
+                        data-testid={`contact-designation-${index}`}
+                        className="w-full h-10"
+                      />
+                    </div>
+                    {formData.contact_persons.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removeContact(index)}
+                        className="text-red-500 hover:text-red-700 h-10 w-10 flex-shrink-0"
+                        data-testid={`remove-contact-${index}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
-                </div>
-                <div className="flex items-end">
-                  {formData.contact_persons.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => removeContact(index)}
-                      className="text-red-500 hover:text-red-700"
-                      data-testid={`remove-contact-${index}`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
                 </div>
               </div>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addContact}
-              className="flex items-center gap-2"
-              data-testid="add-contact-button"
-            >
-              <Plus className="w-4 h-4" />
-              Add Contact
-            </Button>
+            {/* Removed the standalone Add Contact button as it's now inline */}
           </div>
         </div>
-
+ 
         {/* Section 3 - Address Details */}
         <div>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium text-[#0A2A43]">Address Details</h3>
             <Button
               type="button"
-              variant="outline"
               onClick={addAddress}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 bg-[#0A2A43] hover:bg-[#0A2A43]/90 text-white"
               data-testid="add-address-button"
             >
               <Plus className="w-4 h-4" />
@@ -469,8 +465,8 @@ const ClientForm = ({ client, onClose }) => {
           </div>
           <div className="space-y-4">
             {formData.addresses.map((address, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className={`grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg ${address.is_primary ? 'border-blue-500 bg-blue-50' : ''}`}
               >
                 <div className="md:col-span-2">
@@ -487,7 +483,7 @@ const ClientForm = ({ client, onClose }) => {
                     className={errors[`address_${index}`] ? 'border-red-500' : ''}
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor={`region_${index}`}>Region / State</Label>
                   <Select
                     value={address.region}
@@ -513,8 +509,8 @@ const ClientForm = ({ client, onClose }) => {
                     <p className="text-red-500 text-sm mt-1">{errors[`region_${index}`]}</p>
                   )}
                 </div>
-                <div>
-                  <Label htmlFor={`country_${index}`}>Country *</Label>
+                <div className="space-y-2">
+                  <Label htmlFor={`country_${index}`}>Country <span className="text-red-500">*</span></Label>
                   <CountryDropdown
                     value={address.country}
                     onChange={(value) => handleAddressChange(index, 'country', value)}
@@ -560,13 +556,13 @@ const ClientForm = ({ client, onClose }) => {
             ))}
           </div>
         </div>
-
+ 
         {/* Section 4 - Account & Status */}
         <div>
           <h3 className="text-lg font-medium text-[#0A2A43] mb-4">Account & Status</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="account_owner">Account Owner *</Label>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="account_owner">Account Owner <span className="text-red-500">*</span></Label>
               <Select
                 value={formData.account_owner}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, account_owner: value }))}
@@ -585,8 +581,8 @@ const ClientForm = ({ client, onClose }) => {
                 <p className="text-red-500 text-sm mt-1">{errors.account_owner}</p>
               )}
             </div>
-            <div>
-              <Label htmlFor="client_status">Status *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="client_status">Status <span className="text-red-500">*</span></Label>
               <Select
                 value={formData.client_status}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, client_status: value }))}
@@ -606,12 +602,11 @@ const ClientForm = ({ client, onClose }) => {
             </div>
           </div>
         </div>
-
+ 
         {/* Section 5 - Notes / Description */}
         <div>
           <h3 className="text-lg font-medium text-[#0A2A43] mb-4">Notes / Description</h3>
           <div>
-            <Label htmlFor="notes">Notes / Description</Label>
             <Textarea
               id="notes"
               name="notes"
@@ -623,14 +618,14 @@ const ClientForm = ({ client, onClose }) => {
             />
           </div>
         </div>
-
+ 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-3 pt-6 border-t">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onClose} 
-            data-testid="client-form-cancel"
+        <div className="flex justify-end gap-4 mb-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={loading}
             className="px-6"
           >
             Cancel
@@ -639,14 +634,16 @@ const ClientForm = ({ client, onClose }) => {
             type="submit"
             disabled={loading}
             data-testid="client-form-submit"
-            className="bg-[#0A2A43] hover:bg-[#0A2A43]/90 px-6"
+            className="px-6 bg-[#0A2A43] hover:bg-[#0A2A43]/90 text-white"
           >
-            {loading ? 'Saving...' : client ? 'Update Client' : 'Save Client'}
+            {loading ? 'Saving...' : (client ? 'Update Client' : 'Create Client')}
           </Button>
         </div>
       </form>
     </div>
   );
 };
-
+ 
 export default ClientForm;
+ 
+ 
