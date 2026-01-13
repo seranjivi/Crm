@@ -24,6 +24,7 @@ import ActionItems from './pages/ActionItems';
 import SalesActivity from './pages/SalesActivity';
 import Forecast from './pages/Forecast';
 import UserManagement from './pages/UserManagement';
+import RFPDetails from './pages/RFPDetails';
 
 function App() {
   return (
@@ -89,6 +90,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <UserManagement />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rfp-details"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RFPDetails />
                 </Layout>
               </ProtectedRoute>
             }

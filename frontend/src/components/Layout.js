@@ -37,6 +37,7 @@ const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(true);
+  const [opportunitiesOpen, setOpportunitiesOpen] = useState(true);
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -44,7 +45,15 @@ const Layout = ({ children }) => {
     { name: 'Client Overview', href: '/client-overview', icon: Users },
     { name: 'Sales Activity', href: '/sales-activity', icon: Activity },
     { name: 'Lead', href: '/leads', icon: Target },
-    { name: 'Opportunity', href: '/opportunities', icon: TrendingUp },
+    { 
+      name: 'Opportunities', 
+      href: '/opportunities', 
+      icon: TrendingUp,
+      subItems: [
+        { name: 'All Opportunities', href: '/opportunities' },
+        { name: 'RFP Details', href: '/rfp-details' }
+      ]
+    },
     {
       name: 'Projects',
       href: '/projects',
@@ -117,7 +126,7 @@ const Layout = ({ children }) => {
               : false;
             const isGroupActive = isActive || isChildActive;
 
-            if (!hasChildren) {
+            if (!hasChildren && !item.subItems) {
               return (
                 <Link
                   key={item.name}
@@ -139,7 +148,53 @@ const Layout = ({ children }) => {
               );
             }
 
-            const groupOpen = item.name === 'Projects' ? projectsOpen : false;
+            const groupOpen = item.name === 'Projects' ? projectsOpen : item.name === 'Opportunities' ? opportunitiesOpen : false;
+
+            if (item.subItems) {
+              return (
+                <div key={item.name}>
+                  <button
+                    onClick={() => item.subItems && setOpportunitiesOpen(!opportunitiesOpen)}
+                    className={`group w-full flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                      item.subItems.some(subItem => location.pathname === subItem.href)
+                        ? 'bg-gray-800 text-white'
+                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    }`}
+                  >
+                    <item.icon
+                      className={`mr-3 flex-shrink-0 h-6 w-6 ${
+                        item.subItems.some(subItem => location.pathname === subItem.href) ? 'text-white' : 'text-gray-400 group-hover:text-gray-300'
+                      }`}
+                      aria-hidden="true"
+                    />
+                    <span className="flex-1 text-left">{item.name}</span>
+                    <ChevronDown 
+                      className={`h-4 w-4 transform transition-transform ${
+                        opportunitiesOpen ? 'rotate-180' : ''
+                      }`} 
+                      aria-hidden="true" 
+                    />
+                  </button>
+                  {opportunitiesOpen && (
+                    <div className="pl-4 mt-1 space-y-1">
+                      {item.subItems.map((subItem) => (
+                        <Link
+                          key={subItem.name}
+                          to={subItem.href}
+                          className={`block pl-8 pr-3 py-2 text-sm rounded-md ${
+                            location.pathname === subItem.href
+                              ? 'bg-blue-600 text-white'
+                              : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                          }`}
+                        >
+                          {subItem.name}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
 
             return (
               <div key={item.name}>
