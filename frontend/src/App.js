@@ -25,6 +25,7 @@ import SalesActivity from './pages/SalesActivity';
 import Forecast from './pages/Forecast';
 import UserManagement from './pages/UserManagement';
 import RFPDetails from './pages/RFPDetails';
+import OpportunityManagement from './pages/opportunity-management';
 
 function App() {
   return (
@@ -100,6 +101,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <RFPDetails />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/opportunity-management"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <OpportunityManagement />
                 </Layout>
               </ProtectedRoute>
             }
