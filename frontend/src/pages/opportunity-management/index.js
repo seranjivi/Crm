@@ -143,30 +143,39 @@ const OpportunityManagement = () => {
 
   // Process data for charts with enhanced data processing
   const processChartData = () => {
-    // Status count for bar chart with additional statuses
-    const statusCount = data.reduce((acc, curr) => {
+    // Status count and amount for bar chart with additional statuses
+    const statusData = data.reduce((acc, curr) => {
       const status = curr.primaryStatus || 'In Progress';
-      acc[status] = (acc[status] || 0) + 1;
+      if (!acc[status]) {
+        acc[status] = { count: 0, amount: 0 };
+      }
+      acc[status].count += 1;
+      acc[status].amount += curr.amount || 0;
       return acc;
     }, {});
 
     // Format for bar chart with consistent ordering
     const statusOrder = ['Pending L1', 'Pending L2', 'In Progress', 'On Hold', 'Closed / Won', 'Lost'];
     const barChartData = statusOrder
-      .filter(status => status in statusCount)
+      .filter(status => status in statusData)
       .map(status => ({
         name: status,
-        count: statusCount[status],
+        count: statusData[status].count,
+        amount: statusData[status].amount,
         color: COLORS[status] || '#8884d8'
       }));
 
-    // Format for donut chart with percentage calculation
-    const total = Object.values(statusCount).reduce((a, b) => a + b, 0);
-    const donutChartData = Object.entries(statusCount)
-      .map(([name, value]) => ({
+    // Format for donut chart with percentage and amount calculation
+    const totalCount = Object.values(statusData).reduce((sum, { count }) => sum + count, 0);
+    const totalAmount = Object.values(statusData).reduce((sum, { amount }) => sum + amount, 0);
+    
+    const donutChartData = Object.entries(statusData)
+      .map(([name, { count, amount }]) => ({
         name,
-        value,
-        percent: value / total,
+        value: count,
+        amount,
+        percent: count / totalCount,
+        amountPercent: totalAmount > 0 ? (amount / totalAmount) * 100 : 0,
         color: COLORS[name] || '#8884d8'
       }))
       .sort((a, b) => b.value - a.value);
@@ -214,26 +223,35 @@ const OpportunityManagement = () => {
 
   const { barChartData, donutChartData, pendingChartData, trendData } = processChartData();
 
-  // Enhanced tooltip with better formatting
+  // Enhanced tooltip with better formatting and amount display
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-xl">
-          <p className="font-semibold text-gray-900">{data.fullName || label}</p>
-          <div className="mt-1 space-y-1">
-            <p className="text-sm text-gray-600">
-              <span className="font-medium">Count:</span> {data.value || data.count}
-            </p>
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-xl text-sm">
+          <p className="font-semibold text-gray-900 mb-2">{data.fullName || label}</p>
+          <div className="space-y-1">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Count:</span>
+              <span className="font-medium">{data.value || data.count}</span>
+            </div>
             {data.percent !== undefined && (
-              <p className="text-sm text-gray-600">
-                <span className="font-medium">Percentage:</span> {(data.percent * 100).toFixed(1)}%
-              </p>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Percentage:</span>
+                <span className="font-medium">{(data.percent * 100).toFixed(1)}%</span>
+              </div>
             )}
-            {data.amount && (
-              <p className="text-sm text-gray-600">
-                <span className="font-medium">Amount:</span> ${data.amount.toLocaleString()}
-              </p>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Amount:</span>
+              <span className="font-medium">
+                ${(data.amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+            {data.amountPercent !== undefined && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Amount %:</span>
+                <span className="font-medium">{data.amountPercent.toFixed(1)}%</span>
+              </div>
             )}
           </div>
         </div>
@@ -242,7 +260,7 @@ const OpportunityManagement = () => {
     return null;
   };
 
-  // Enhanced donut chart label with better positioning
+  // Enhanced donut chart label with better positioning and amount info
   const renderCustomizedLabel = ({
     cx,
     cy,
@@ -252,7 +270,8 @@ const OpportunityManagement = () => {
     percent,
     index,
     name,
-    value
+    value,
+    payload
   }) => {
     const RADIAN = Math.PI / 180;
     const radius = 25 + innerRadius + (outerRadius - innerRadius);
@@ -266,13 +285,23 @@ const OpportunityManagement = () => {
       <g>
         <text
           x={x}
-          y={y}
+          y={y - 8}
           fill="#4B5563"
           textAnchor={x > cx ? 'start' : 'end'}
           dominantBaseline="central"
           className="text-xs font-medium"
         >
-          {`${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+          {`${name}: ${value}`}
+        </text>
+        <text
+          x={x}
+          y={y + 8}
+          fill="#6B7280"
+          textAnchor={x > cx ? 'start' : 'end'}
+          dominantBaseline="central"
+          className="text-2xs"
+        >
+          {`₹${payload.amount.toLocaleString('en-IN')}`}
         </text>
       </g>
     );
