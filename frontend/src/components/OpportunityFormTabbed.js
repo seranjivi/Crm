@@ -3,6 +3,7 @@ import api from '../utils/api';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Search, ChevronDown, Loader2 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -10,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Switch } from './ui/switch';
 import { Slider } from './ui/slider';
 import { toast } from 'sonner';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import MultiFileUpload from './attachments/MultiFileUpload';
 import DateField from './DateField';
 
@@ -18,9 +19,12 @@ const OpportunityFormTabbed = ({ opportunity, onClose = null }) => {
   const [activeTab, setActiveTab] = useState('details');
   const [loading, setLoading] = useState(false);
   const [formErrors, setFormErrors] = useState({});
-  const [clients, setClients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);  
+  const [clients, setClients] = useState([]);
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+  const [isLoadingClients, setIsLoadingClients] = useState(false);
+  const [clientSearchError, setClientSearchError] = useState('');
+  const [hasFetchedClients, setHasFetchedClients] = useState(false);
   const [nextStepInput, setNextStepInput] = useState('');
   const [isSubmittingNextStep, setIsSubmittingNextStep] = useState(false);
 
@@ -86,9 +90,9 @@ const OpportunityFormTabbed = ({ opportunity, onClose = null }) => {
 
   const [formData, setFormData] = useState({
     opportunity: {
-      opportunityName: '',
+      opportunity_name: '',
       clientId: '',
-      clientName: '',
+      client_name: '',
       closeDate: '',
       amount: 0,
       currency: 'USD',
@@ -158,8 +162,8 @@ const OpportunityFormTabbed = ({ opportunity, onClose = null }) => {
     const errors = {};
     
     // Required fields validation
-    if (!formData.opportunity.opportunityName?.trim()) {
-      errors.opportunityName = 'Opportunity name is required';
+    if (!formData.opportunity.opportunity_name?.trim()) {
+      errors.opportunity_name = 'Opportunity name is required';
     }
     if (!formData.opportunity.clientId) {
       errors.clientId = 'Client selection is required';
@@ -177,86 +181,100 @@ const OpportunityFormTabbed = ({ opportunity, onClose = null }) => {
     return errors;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  try {
+    const isEdit = !!opportunity?.opportunityId;
+    const opportunityId = opportunity?.opportunityId;
+
+    // Format the closeDate properly
+    let closeDate = formData.opportunity.closeDate;
+    if (!closeDate) {
+      closeDate = new Date().toISOString().split('T')[0]; // Default to today if not provided
+    } else if (closeDate instanceof Date) {
+      closeDate = closeDate.toISOString().split('T')[0];
+    } else if (typeof closeDate === 'string') {
+      // Ensure we have a valid date string
+      closeDate = closeDate.split('T')[0];
+    }
+
+    // Prepare the data with all required fields
+    const opportunityData = {
+      // Required fields
+      opportunity_name: formData.opportunity.opportunity_name || 'New Opportunity',
+      client_name: formData.opportunity.client_name || 'Unknown Client',
+      clientId: formData.opportunity.clientId,
+      closeDate: closeDate, // Add the formatted date
+      amount: parseFloat(formData.opportunity.amount) || 0,
+      currency: formData.opportunity.currency || 'USD',
+      
+      // Optional fields with defaults
+      leadSource: formData.opportunity.leadSource || null,
+      type: formData.opportunity.type || 'New Business',
+      triaged: formData.opportunity.triaged !== 'Drop',
+      pipelineStatus: formData.opportunity.pipelineStatus || 'Prospecting',
+      winProbability: parseInt(formData.opportunity.winProbability) || 10,
+      nextSteps: Array.isArray(formData.opportunity.nextSteps) ? formData.opportunity.nextSteps : [],
+      createdBy: formData.opportunity.createdBy || 'system',
+    };
+
+    // For edit, include the opportunityId
+    if (isEdit) {
+      opportunityData.opportunityId = opportunityId;
+    }
+
+    console.log('Submitting opportunity data:', JSON.stringify(opportunityData, null, 2));
+
+    let result;
+    if (isEdit) {
+      const { id, createdAt, updatedAt, ...updateData } = opportunityData;
+      result = await api.put(`/opportunities/${opportunityId}`, updateData);
+    } else {
+      result = await api.post('/opportunities', opportunityData);
+    }
+
+    if (onSuccess) {
+      onSuccess(result.data);
+    }
+    toast.success(`Opportunity ${isEdit ? 'updated' : 'created'} successfully!`);
     
-    // Validate form
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      setFormErrors(prev => ({
-        ...prev,
-        ...validationErrors
-      }));
-      toast.error('Please fill in all required fields');
-      return;
+  } catch (error) {
+    console.error('Error saving opportunity:', error);
+    let errorMessage = 'Failed to save opportunity';
+    
+    if (error.response) {
+      console.error('Error response data:', error.response.data);
+      if (Array.isArray(error.response.data?.detail)) {
+        errorMessage = error.response.data.detail.map(d => d.msg || JSON.stringify(d)).join(', ');
+      } else if (error.response.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response.data?.detail) {
+        errorMessage = typeof error.response.data.detail === 'string' 
+          ? error.response.data.detail 
+          : JSON.stringify(error.response.data.detail);
+      }
+      console.error('Status:', error.response.status);
+    } else if (error.request) {
+      console.error('No response received:', error.request);
+      errorMessage = 'No response from server';
+    } else {
+      console.error('Error:', error.message);
+      errorMessage = error.message;
     }
     
-    setLoading(true);
-    setFormErrors({});
-
-    try {
-      const isEdit = !!opportunity?.opportunityId;
-      const opportunityId = opportunity?.opportunityId;
-
-      const opportunityData = {
-        ...formData.opportunity,
-        ...(formData.opportunity.triaged === 'Drop' && { pipelineStatus: undefined })
-      };
-
-      let opportunityResult;
-      if (isEdit) {
-        const { id, createdAt, updatedAt, ...updateData } = opportunityData;
-        opportunityResult = await api.put(`/api/opportunities/${opportunityId}`, updateData);
-      } else {
-        opportunityResult = await api.post('/api/opportunities', opportunityData);
-      }
-
-      const currentOpportunityId = opportunityId || opportunityResult.data.opportunityId;
-
-      if (formData.rfpDetails) {
-        const rfpEndpoint = `/api/opportunities/${currentOpportunityId}/rfp`;
-        if (formData.rfpDetails.id) {
-          const { id, createdAt, updatedAt, ...rfpUpdateData } = formData.rfpDetails;
-          await api.put(rfpEndpoint, rfpUpdateData);
-        } else {
-          await api.post(rfpEndpoint, formData.rfpDetails);
-        }
-      }
-
-      if (formData.sowDetails) {
-        const sowEndpoint = `/api/opportunities/${currentOpportunityId}/sow`;
-        if (formData.sowDetails.id) {
-          const { id, createdAt, updatedAt, ...sowUpdateData } = formData.sowDetails;
-          await api.put(sowEndpoint, sowUpdateData);
-        } else {
-          await api.post(sowEndpoint, formData.sowDetails);
-        }
-      }
-
-      toast.success(`Opportunity ${isEdit ? 'updated' : 'created'} successfully!`);
-      if (onClose) onClose(true);
-
-    } catch (error) {
-      console.error('Error saving opportunity:', error);
-      const errorMessage = error.response?.data?.detail || 'Failed to save opportunity';
-      toast.error(errorMessage);
-      if (error.response?.data?.errors) {
-        setFormErrors(error.response.data.errors);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
+    toast.error(errorMessage);
+  }
+};
   const handleClientSelect = (client) => {
-    updateOpportunityData('clientId', client._id);
-    updateOpportunityData('clientName', client.name);
+    updateOpportunityData('clientId', client._id || client.id);
+    updateOpportunityData('client_name', client.client_name || client.name);
     updateOpportunityData('clientEmail', client.email || '');
     updateOpportunityData('clientPhone', client.phone || '');
     updateOpportunityData('clientAddress', client.address || '');
     updateOpportunityData('clientIndustry', client.industry || '');
-    setSearchTerm(client.name);
-    setIsClientDropdownOpen(false);
+    setSearchTerm(client.client_name);
+
   };
 
   useEffect(() => {
@@ -273,34 +291,47 @@ const OpportunityFormTabbed = ({ opportunity, onClose = null }) => {
     };
   }, []);
 
+  const fetchClients = async (search = '') => {
+    setIsLoadingClients(true);
+    setClientSearchError('');
+    setHasFetchedClients(true);
+
+    try {
+      const response = await api.get('/clients');
+
+      
+      // Ensure we have valid client data
+      const clientsData = Array.isArray(response.data) 
+        ? response.data 
+        : (response.data && Array.isArray(response.data.clients)) 
+          ? response.data.clients 
+          : [];
+          
+      setClients(clientsData);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      setClientSearchError('Failed to load clients. Please try again.');
+      setClients([]);
+    } finally {
+      setIsLoadingClients(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        const response = await api.get('/api/clients', {
-          params: { search: searchTerm }
-        });
-        setClients(response.data);
-      } catch (error) {
-        console.error('Error fetching clients:', error);
-        if (!searchTerm) {
-          toast.error('Failed to load clients');
-        }
-      }
-    };
-
-    const debounceTimer = setTimeout(() => {
-      fetchClients();
-    }, 300);
-
-    return () => clearTimeout(debounceTimer);
-  }, [searchTerm]);
+    if (isClientDropdownOpen && searchTerm.length >= 2) {
+      const debounceTimer = setTimeout(() => {
+        fetchClients(searchTerm);
+      }, 500);
+      return () => clearTimeout(debounceTimer);
+    }
+  }, [searchTerm, isClientDropdownOpen]);
 
   useEffect(() => {
     const loadOpportunityData = async () => {
       if (opportunity?.opportunityId) {
         try {
           setLoading(true);
-          const response = await api.get(`/api/opportunities/${opportunity.opportunityId}`);
+          const response = await api.get(`/opportunities/${opportunity.opportunityId}`);
           const data = response.data;
 
           setFormData({
@@ -400,71 +431,120 @@ const OpportunityFormTabbed = ({ opportunity, onClose = null }) => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
-                    <Label htmlFor="opportunityName">Opportunity Name *</Label>
+                    <Label htmlFor="opportunity_name">Opportunity Name *</Label>
                     <div>
                       <Input
-                        id="opportunityName"
-                        value={formData.opportunity.opportunityName}
-                        onChange={(e) => updateOpportunityData('opportunityName', e.target.value)}
-                        className={formErrors.opportunityName ? 'border-red-500' : ''}
+                        id="opportunity_name"
+                        value={formData.opportunity.opportunity_name}
+                        onChange={(e) => updateOpportunityData('opportunity_name', e.target.value)}
+                        className={formErrors.opportunity_name ? 'border-red-500' : ''}
                         required
                       />
-                      {formErrors.opportunityName && (
-                        <p className="mt-1 text-sm text-red-600">{formErrors.opportunityName}</p>
+                      {formErrors.opportunity_name && (
+                        <p className="mt-1 text-sm text-red-600">{formErrors.opportunity_name}</p>
                       )}
                     </div>
                   </div>
 
-                  <div className="relative">
+                  <div className="relative" id="clientSearch">
                     <Label htmlFor="clientSearch">Client *</Label>
                     <div className="relative">
-                      {formErrors.clientId && (
-                        <p className="text-sm text-red-600 mb-1">{formErrors.clientId}</p>
-                      )}
-                      <Input
-                        id="clientSearch"
-                        value={searchTerm}
-                        onChange={(e) => {
-                          setSearchTerm(e.target.value);
-                          setIsClientDropdownOpen(true);
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsClientDropdownOpen(!isClientDropdownOpen);
+                          if (!hasFetchedClients) {
+                            fetchClients();
+                          }
                         }}
-                        onFocus={() => setIsClientDropdownOpen(true)}
-                        placeholder="Search clients..."
-                        className="w-full"
-                        required
-                      />
-                      {isClientDropdownOpen && clients.length > 0 && (
-                        <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">
-                          {clients.map(client => (
-                            <div
-                              key={client._id}
-                              className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                              onClick={() => handleClientSelect(client)}
-                            >
-                              <div className="font-medium">{client.name}</div>
-                              <div className="text-sm text-gray-500">
-                                {client.email} • {client.phone}
-                              </div>
+                        className="flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <span className="truncate">
+                          {formData.opportunity.client_name || 'Select a client...'}
+                        </span>
+                        <ChevronDown className="h-4 w-4 opacity-50" />
+                      </button>
+                      
+                      {isClientDropdownOpen && (
+                        <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md">
+                          <div className="p-2 border-b">
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                type="search"
+                                placeholder="Search clients..."
+                                className="w-full bg-background pl-8"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                autoFocus
+                              />
                             </div>
-                          ))}
+                          </div>
+                          
+                          <div className="max-h-[250px] overflow-auto">
+                            {isLoadingClients ? (
+                              <div className="flex items-center justify-center p-4 text-sm text-muted-foreground">
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Loading clients...
+                              </div>
+                            ) : clientSearchError ? (
+                              <div className="p-4 text-center text-sm text-destructive">
+                                {clientSearchError}
+                              </div>
+                            ) : clients.length === 0 ? (
+                              <div className="p-4 text-center text-sm text-muted-foreground">
+                                {searchTerm ? 'No clients found' : 'No clients available'}
+                              </div>
+                            ) : (
+                            clients.map((client) => (
+  <div
+    key={client.id}
+    className="cursor-pointer select-none rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+    onClick={() => {
+      handleClientSelect({
+        _id: client.id,
+        client_name: client.client_name,
+        email: client.contact_email,
+        phone: '', // Add phone if available
+        companyName: client.client_name
+      });
+      setIsClientDropdownOpen(false);
+    }}
+  >
+    <div className="font-medium">
+      {client.client_name}
+    </div>
+  </div>
+))
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
+
+                    {formErrors.clientId && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.clientId}</p>
+                    )}
                     {formData.opportunity.clientId && (
                       <div className="mt-2 p-3 bg-gray-50 rounded-md">
                         <div className="grid grid-cols-2 gap-2 text-sm">
                           <div>
+                            <span className="text-gray-500">Name:</span> {formData.opportunity.client_name || 'N/A'}
+                          </div>
+                          <div>
                             <span className="text-gray-500">Email:</span> {formData.opportunity.clientEmail || 'N/A'}
                           </div>
-                          <div>
-                            <span className="text-gray-500">Phone:</span> {formData.opportunity.clientPhone || 'N/A'}
-                          </div>
-                          <div className="col-span-2">
-                            <span className="text-gray-500">Address:</span> {formData.opportunity.clientAddress || 'N/A'}
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Industry:</span> {formData.opportunity.clientIndustry || 'N/A'}
-                          </div>
+                          {formData.opportunity.clientPhone && (
+                            <div>
+                              <span className="text-gray-500">Phone:</span> {formData.opportunity.clientPhone}
+                            </div>
+                          )}
+                          {formData.opportunity.clientIndustry && (
+                            <div>
+                              <span className="text-gray-500">Industry:</span> {formData.opportunity.clientIndustry}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -476,13 +556,24 @@ const OpportunityFormTabbed = ({ opportunity, onClose = null }) => {
                       {formErrors.closeDate && (
                         <p className="text-sm text-red-600 mb-1">{formErrors.closeDate}</p>
                       )}
-                      <DateField
-                        selected={formData.opportunity.closeDate ? new Date(formData.opportunity.closeDate) : null}
-                        onChange={(date) => updateOpportunityData('closeDate', date)}
-                        minDate={new Date()}
-                        placeholderText="Select close date"
-                        required
-                      />
+                      <input
+    type="date"
+    value={formData.opportunity.closeDate ? new Date(formData.opportunity.closeDate).toISOString().split('T')[0] : ''}
+    onChange={(e) => {
+      const selectedDate = e.target.value ? new Date(e.target.value).toISOString() : '';
+      updateOpportunityData('closeDate', selectedDate);
+      if (formErrors.closeDate) {
+        setFormErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.closeDate;
+          return newErrors;
+        });
+      }
+    }}
+    min={new Date().toISOString().split('T')[0]}
+    className={`w-full p-2 border rounded ${formErrors.closeDate ? 'border-red-500' : 'border-gray-300'}`}
+    required
+  />
                     </div>
                   </div>
 

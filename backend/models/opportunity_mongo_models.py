@@ -24,7 +24,40 @@ class PyObjectId(ObjectId):
     @classmethod
     def __get_pydantic_json_schema__(cls, field_schema):
         field_schema.update(type="string")
+class OpportunityCreate(BaseModel):
+    opportunity_name: str
+    client_id: str
+    client_name: str
+    close_date: str
+    amount: float
+    currency: str = "USD"
+    lead_source: Optional[str] = None
+    type: str = "New Business"
+    triaged: bool = True
+    pipeline_status: str = "Prospecting"
+    win_probability: int = 10
+    next_steps: List[Dict] = []
+    created_by: str = "system"
+    opportunity_id: Optional[str] = None  # Make this optional
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "opportunity_name": "Enterprise Deal",
+                "client_id": "123e4567-e89b-12d3-a456-426614174000",
+                "client_name": "Acme Corp",
+                "close_date": "2023-12-31",
+                "amount": 10000.0,
+                "currency": "USD",
+                "lead_source": "Referral",
+                "type": "New Business",
+                "triaged": True,
+                "pipeline_status": "Prospecting",
+                "win_probability": 25,
+                "next_steps": [],
+                "created_by": "user@example.com"
+            }
+        }
 # Base models with MongoDB support
 class MongoBaseModel(BaseModel):
     model_config = ConfigDict(
@@ -101,9 +134,23 @@ class OpportunityBase(MongoBaseModel):
             return datetime.fromisoformat(v.replace('Z', '+00:00')).date()
         return v
 
-class OpportunityCreate(OpportunityBase):
-    createdAt: Optional[datetime] = None
-    updatedAt: Optional[datetime] = None
+# In models/opportunity_mongo_models.py, ensure the OpportunityCreate model looks like this:
+class OpportunityCreate(BaseModel):
+    opportunity_name: str
+    client_id: str
+    client_name: str
+    close_date: str
+    amount: float
+    currency: str = "USD"
+    lead_source: Optional[str] = None
+    type: str = "New Business"
+    triaged: bool = True
+    pipeline_status: str = "Prospecting"
+    win_probability: int = 10
+    next_steps: List[Dict] = []
+    created_by: str = "system"
+    # Make opportunity_id optional
+    opportunity_id: Optional[str] = None
 
 class OpportunityUpdate(MongoBaseModel):
     opportunityName: Optional[str] = None

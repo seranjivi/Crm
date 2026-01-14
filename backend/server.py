@@ -20,15 +20,15 @@ from routers import auth, users, users_new, clients, partners, leads, leads_new,
 # Create the main app
 app = FastAPI(title="Sightspectrum CRM", version="1.0.0")
 
-# Database will be initialized on first request, not at import time
-
-# CORS middleware
+# Configure CORS middleware
+# In server.py, update the CORS middleware to:
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["*"],  # For development only, restrict in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Include routers with /api prefix

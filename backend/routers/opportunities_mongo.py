@@ -146,37 +146,34 @@ async def get_opportunity(opportunity_id: str, current_user: dict = Depends(get_
         sowDocuments=[convert_object_ids(doc) for doc in sow_documents]
     )
 
-@router.post("", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=Opportunity)
 async def create_opportunity(
-    opportunity_data: OpportunityCreate, 
-    current_user: dict = Depends(get_current_user)
+    opportunity: OpportunityCreate, 
+    db: AsyncIOMotorDatabase = Depends(get_db)
 ):
-    """
-    Create a new opportunity with basic details
+    # Generate a new opportunity_id if not provided
+    opportunity_dict = opportunity.dict()
     
-    This creates only the main opportunity record. RFP and SOW details can be added separately.
-    """
-    db = get_db()
+    # Add required fields
+    opportunity_dict['opportunity_id'] = str(uuid.uuid4())  # Generate a new UUID
+    opportunity_dict['created_at'] = datetime.utcnow()
+    opportunity_dict['updated_at'] = datetime.utcnow()
     
-    # Generate opportunity ID
-    opportunity_id = await generate_opportunity_id(db)
-    
-    # Prepare opportunity document
-    opportunity_dict = opportunity_data.model_dump()
-    opportunity_dict["opportunityId"] = opportunity_id
-    opportunity_dict["createdBy"] = current_user.get("email", "system")
-    opportunity_dict["createdAt"] = datetime.utcnow()
-    opportunity_dict["updatedAt"] = datetime.utcnow()
-    
-    # Insert opportunity
-    result = await db.opportunities.insert_one(opportunity_dict)
-    
-    # Return the created opportunity with ID
-    created_opportunity = await db.opportunities.find_one({"_id": result.inserted_id})
-    created_opportunity["id"] = str(created_opportunity["_id"])
-    del created_opportunity["_id"]
-    
-    return created_opportunity
+    try:
+        # Insert the new opportunity
+        result = await db.opportunities.insert_one(opportunity_dict)
+        
+        # Fetch the created opportunity
+        created_opportunity = await db.opportunities.find_one(
+            {"_id": result.inserted_id}
+        )
+        return created_opportunity
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating opportunity: {str(e)}"
+        )
 
 @router.put("/{opportunity_id}", response_model=Dict[str, Any])
 async def update_opportunity(
