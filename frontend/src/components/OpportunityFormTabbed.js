@@ -843,7 +843,7 @@ const OpportunityFormTabbed = ({ opportunity, onClose = null }) => {
                               {qa.answer && (
                                 <div className="text-sm text-muted-foreground">
                                   <span className="font-medium">Answer:</span> {qa.answer}
-                                </div>
+                                </div> 
                               )}
                             </div>
                             <Button
