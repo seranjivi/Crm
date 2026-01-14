@@ -19,7 +19,8 @@ import {
   ChevronLeft,
   ChevronRight,
   UserCog,
-  FolderKanban
+  FolderKanban,
+  BarChart
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -51,7 +52,8 @@ const Layout = ({ children }) => {
       icon: TrendingUp,
       subItems: [
         { name: 'All Opportunities', href: '/opportunities' },
-        { name: 'RFP Details', href: '/rfp-details' }
+        { name: 'RFP Details', href: '/rfp-details' },
+{ name: 'Opportunity Management', href: '/opportunity-management', icon: BarChart }
       ]
     },
     {
