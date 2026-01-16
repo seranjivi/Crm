@@ -119,7 +119,7 @@ dummy_clients = [
 
 async def seed_dummy_clients():
     """Seed the database with dummy client data"""
-    client = AsyncIOMotorClient('mongodb://localhost:27017')
+    client = AsyncIOMotorClient('mongodb+srv://siranjeevi9597536779_db_user:s8QGUkDvEBrzrltR@sales-crm.2ssnunp.mongodb.net/')
     db = client['sales_crm']
     
     print("Seeding dummy clients...")

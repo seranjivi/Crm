@@ -2,7 +2,7 @@ import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 
 async def check_clients():
-    client = AsyncIOMotorClient('mongodb://localhost:27017')
+    client = AsyncIOMotorClient('mongodb+srv://siranjeevi9597536779_db_user:s8QGUkDvEBrzrltR@sales-crm.2ssnunp.mongodb.net/')
     db = client['sales_crm']
     
     # Count total clients

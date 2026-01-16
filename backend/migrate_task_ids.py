@@ -8,7 +8,7 @@ import sys
 sys.path.append('/app/backend')
 from utils.task_id_generator import generate_task_id
 
-MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb+srv://siranjeevi9597536779_db_user:s8QGUkDvEBrzrltR@sales-crm.2ssnunp.mongodb.net/")
 DB_NAME = os.environ.get("DB_NAME", "test_database")
 
 async def migrate_task_ids():

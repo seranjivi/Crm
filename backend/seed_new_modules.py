@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 import os
 import uuid
 
-MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb+srv://siranjeevi9597536779_db_user:s8QGUkDvEBrzrltR@sales-crm.2ssnunp.mongodb.net/")
 DB_NAME = os.environ.get("DB_NAME", "test_database")
 
 async def seed_data():

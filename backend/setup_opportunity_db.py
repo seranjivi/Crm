@@ -11,7 +11,7 @@ async def setup_database():
     """Setup MongoDB collections for Opportunity module"""
     
     # Connect to MongoDB
-    client = AsyncIOMotorClient("mongodb://localhost:27017")
+    client = AsyncIOMotorClient("mongodb+srv://siranjeevi9597536779_db_user:s8QGUkDvEBrzrltR@sales-crm.2ssnunp.mongodb.net/")
     db = client.sales_application
     
     try:

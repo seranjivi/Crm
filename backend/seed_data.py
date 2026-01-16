@@ -10,7 +10,7 @@ import uuid
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
+mongo_url = os.environ.get('MONGO_URL', 'mongodb+srv://siranjeevi9597536779_db_user:s8QGUkDvEBrzrltR@sales-crm.2ssnunp.mongodb.net/')
 db_name = os.environ.get('DB_NAME', 'test_database')
 
 # Configure connection options for Atlas MongoDB

@@ -7,7 +7,7 @@ async def setup_sample_regions():
     """Setup sample regions data in the database"""
     
     # Connect to MongoDB
-    client = AsyncIOMotorClient("mongodb://localhost:27017")
+    client = AsyncIOMotorClient("mongodb+srv://siranjeevi9597536779_db_user:s8QGUkDvEBrzrltR@sales-crm.2ssnunp.mongodb.net/")
     db = client.test_database
     
     # Sample regions data
