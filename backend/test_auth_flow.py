@@ -11,7 +11,7 @@ try:
     # Login
     print("Testing login...")
     # login_response = requests.post("http://localhost:8000/api/auth/login", json=login_data)
-    login_response = requests.post("https://sales-9se8.onrender.com/api/auth/login", json=login_data)
+    login_response = requests.post("https://crm-2-qa5x.onrender.com/api/auth/login", json=login_data)
     print(f"Login status: {login_response.status_code}")
     
     if login_response.status_code == 200:
@@ -28,7 +28,7 @@ try:
             "Content-Type": "application/json"
         }
         
-        users_response = requests.get("http://localhost:8000/api/users", headers=headers)
+        users_response = requests.get("https://crm-2-qa5x.onrender.com/api/users", headers=headers)
         print(f"Users API status: {users_response.status_code}")
         
         if users_response.status_code == 200:
